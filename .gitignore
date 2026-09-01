@@ -1,0 +1,29 @@
+# 编译产物
+backend/target/
+*.jar
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# 系统
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+
+# 日志
+*.log
+
+# 环境配置（含密码，不要上传）
+backend/src/main/resources/application-prod.yml
+
+# 临时测试文件
+*.json.bak
