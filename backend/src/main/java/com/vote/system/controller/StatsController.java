@@ -19,13 +19,13 @@ public class StatsController {
 
     @GetMapping("/votes/{id}/stats")
     public Result<StatsVO> stats(@PathVariable Long id) {
-        return Result.ok(statsService.getStats(id));
+        return Result.ok(statsService.getStats(id, UserContext.getUserId()));
     }
 
     @GetMapping("/votes/{id}/details")
     public Result<List<VoteRecord>> details(@PathVariable Long id,
                                              @RequestParam(defaultValue = "1") int page) {
-        return Result.ok(statsService.getDetails(id, page));
+        return Result.ok(statsService.getDetails(id, page, UserContext.getUserId()));
     }
 
     @GetMapping("/my/records")

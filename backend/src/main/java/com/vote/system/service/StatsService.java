@@ -26,13 +26,10 @@ public class StatsService {
     private static final int PAGE_SIZE = 20;
 
     /**
-     * 统计：总数 + 各题选项占比
+     * 统计：总数 + 各题选项占比（仅创建者可看）
      */
-    public StatsVO getStats(Long voteId) {
-        Vote vote = voteMapper.selectById(voteId);
-        if (vote == null) {
-            throw BusinessException.notFound("投票活动不存在");
-        }
+    public StatsVO getStats(Long voteId, Long userId) {
+        Vote vote = checkCreator(voteId, userId);
 
         long total = voteRecordMapper.countByVoteId(voteId);
         List<Question> questions = questionMapper.selectByVoteId(voteId);
@@ -109,9 +106,10 @@ public class StatsService {
     }
 
     /**
-     * 明细列表（分页）
+     * 明细列表（分页，仅创建者可看）
      */
-    public List<VoteRecord> getDetails(Long voteId, int page) {
+    public List<VoteRecord> getDetails(Long voteId, int page, Long userId) {
+        checkCreator(voteId, userId);
         int offset = (page - 1) * PAGE_SIZE;
         return voteRecordMapper.selectByVoteId(voteId, offset, PAGE_SIZE);
     }
@@ -121,6 +119,20 @@ public class StatsService {
      */
     public List<VoteRecord> getMyRecords(String openid) {
         return voteRecordMapper.selectByOpenid(openid);
+    }
+
+    /**
+     * 校验操作者是投票创建者，否则拒绝
+     */
+    private Vote checkCreator(Long voteId, Long userId) {
+        Vote vote = voteMapper.selectById(voteId);
+        if (vote == null) {
+            throw BusinessException.notFound("投票活动不存在");
+        }
+        if (!vote.getCreatorId().equals(userId)) {
+            throw BusinessException.forbidden("无权查看他人的投票统计");
+        }
+        return vote;
     }
 
     @SuppressWarnings("unchecked")
