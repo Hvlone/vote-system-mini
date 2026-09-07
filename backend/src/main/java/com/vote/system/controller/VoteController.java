@@ -30,10 +30,8 @@ public class VoteController {
     }
 
     @GetMapping("/{id}")
-    public Result<?> getVote(@PathVariable Long id,
-                             @RequestHeader(value = "Authorization", required = false) String auth) {
-        String openid = UserContext.getOpenid();
-        return Result.ok(voteService.getVoteVO(id, openid));
+    public Result<?> getVote(@PathVariable Long id) {
+        return Result.ok(voteService.getVoteVO(id, UserContext.getUserId(), UserContext.getOpenid()));
     }
 
     @PutMapping("/{id}")

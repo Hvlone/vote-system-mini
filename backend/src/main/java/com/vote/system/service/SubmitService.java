@@ -57,8 +57,11 @@ public class SubmitService {
             throw BusinessException.conflict("已投过该投票，不可重复提交");
         }
 
-        // ③ IP 限流（简易版：查同 IP 最近窗口内的记录数）
-        checkIpRateLimit(ip, voteId);
+        // ③ IP 限流：同 IP 在时间窗口内对同一投票的提交次数超限则拒绝（防刷票）
+        long recent = voteRecordMapper.countRecentByVoteIdAndIp(voteId, ip, IP_WINDOW_MINUTES);
+        if (recent >= IP_MAX_SUBMIT) {
+            throw BusinessException.tooManyRequests("提交过于频繁，请稍后再试");
+        }
 
         // ④ 校验必填题
         List<Question> questions = questionMapper.selectByVoteId(voteId);
@@ -86,13 +89,6 @@ public class SubmitService {
         }
     }
 
-    private void checkIpRateLimit(String ip, Long voteId) {
-        // 简易限流：查同 IP 同 voteId 的记录数（窗口内）
-        // 生产环境可换 Redis 计数器
-        List<VoteRecord> records = voteRecordMapper.selectByOpenid(ip); // 简化：用 ip 作为标识查
-        // 此处简化处理，实际可用 ip_limit 表
-    }
-
     private void validateAnswers(SubmitDTO dto, List<Question> questions) {
         for (Question q : questions) {
             if (q.getIsRequired() != null && q.getIsRequired() == 1) {
@@ -114,6 +110,10 @@ public class SubmitService {
         Vote vote = voteMapper.selectById(voteId);
         if (vote == null) {
             throw BusinessException.notFound("投票活动不存在");
+        }
+        // 草稿未发布，对外不可见（含创建者，创建者应走 /votes/{id} 管理接口）
+        if (vote.getStatus() == 0) {
+            throw BusinessException.notFound("投票尚未发布");
         }
         VoteVO vo = new VoteVO();
         vo.setId(vote.getId());

@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS `vote` (
   description TEXT COMMENT '活动说明',
   start_time DATETIME NOT NULL COMMENT '开始时间',
   end_time DATETIME NOT NULL COMMENT '结束时间',
-  status TINYINT DEFAULT 1 COMMENT '状态:1发布中 2已结束',
+  status TINYINT DEFAULT 0 COMMENT '状态:0草稿 1发布中 2已结束',
   creator_id BIGINT NOT NULL COMMENT '创建人ID',
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   INDEX idx_status (status),
@@ -83,7 +83,6 @@ INSERT INTO `user` (openid, nickname, role) VALUES
 
 INSERT INTO `vote` (title, description, start_time, end_time, status, creator_id) VALUES
 ('2026年度优秀员工评选', '每人限投一次，请认真选择', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 1, 1);
-
 SET @vote_id = LAST_INSERT_ID();
 
 -- 第1题：单选

@@ -24,4 +24,13 @@ public interface VoteRecordMapper {
 
     @Select("SELECT * FROM vote_record WHERE openid = #{openid} ORDER BY submitted_at DESC")
     List<VoteRecord> selectByOpenid(String openid);
+
+    @Delete("DELETE FROM vote_record WHERE vote_id = #{voteId}")
+    int deleteByVoteId(Long voteId);
+
+    @Select("SELECT COUNT(*) FROM vote_record WHERE vote_id = #{voteId} " +
+            "AND ip_address = #{ip} AND submitted_at >= DATE_SUB(NOW(), INTERVAL #{minutes} MINUTE)")
+    long countRecentByVoteIdAndIp(@Param("voteId") Long voteId,
+                                  @Param("ip") String ip,
+                                  @Param("minutes") int minutes);
 }
