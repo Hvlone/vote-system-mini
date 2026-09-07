@@ -31,10 +31,20 @@ public class AuthService {
             user.setRole("USER");
             userMapper.insert(user);
             log.info("新用户注册: openid={}, id={}", openid, user.getId());
-        } else if (dto.getNickname() != null) {
-            // 更新昵称/头像
-            user.setNickname(dto.getNickname());
-            user.setAvatarUrl(dto.getAvatarUrl());
+        } else {
+            // 更新昵称/头像（仅更新有值的字段并持久化，避免 null 覆盖旧值）
+            boolean changed = false;
+            if (dto.getNickname() != null && !dto.getNickname().isBlank()) {
+                user.setNickname(dto.getNickname());
+                changed = true;
+            }
+            if (dto.getAvatarUrl() != null) {
+                user.setAvatarUrl(dto.getAvatarUrl());
+                changed = true;
+            }
+            if (changed) {
+                userMapper.updateProfile(user);
+            }
         }
 
         String token = jwtUtil.generate(user.getId(), user.getOpenid(), user.getRole());

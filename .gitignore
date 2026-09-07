@@ -27,3 +27,6 @@ backend/src/main/resources/application-prod.yml
 
 # 临时测试文件
 *.json.bak
+
+# 说明类文档（GitHub 仅上传代码；个别需上传时用 git add -f）
+*.md

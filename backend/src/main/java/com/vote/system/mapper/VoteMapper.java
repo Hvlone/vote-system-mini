@@ -19,6 +19,10 @@ public interface VoteMapper {
     @Select("SELECT * FROM vote WHERE creator_id = #{creatorId} ORDER BY created_at DESC")
     List<Vote> selectByCreator(Long creatorId);
 
+    @Update("UPDATE vote SET title = #{title}, description = #{description}, " +
+            "start_time = #{startTime}, end_time = #{endTime} WHERE id = #{id}")
+    int updateBaseInfo(Vote vote);
+
     @Update("UPDATE vote SET status = #{status} WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 

@@ -13,4 +13,7 @@ public interface UserMapper {
             "VALUES (#{openid}, #{nickname}, #{avatarUrl}, #{role})")
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(User user);
+
+    @Update("UPDATE user SET nickname = #{nickname}, avatar_url = #{avatarUrl} WHERE id = #{id}")
+    int updateProfile(User user);
 }

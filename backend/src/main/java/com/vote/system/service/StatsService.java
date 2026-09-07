@@ -33,7 +33,7 @@ public class StatsService {
 
         long total = voteRecordMapper.countByVoteId(voteId);
         List<Question> questions = questionMapper.selectByVoteId(voteId);
-        List<VoteRecord> records = voteRecordMapper.selectByVoteId(voteId, 0, 10000);
+        List<VoteRecord> records = loadAllRecords(voteId);
 
         StatsVO vo = new StatsVO();
         vo.setTotalVotes(total);
@@ -110,8 +110,29 @@ public class StatsService {
      */
     public List<VoteRecord> getDetails(Long voteId, int page, Long userId) {
         checkCreator(voteId, userId);
+        if (page < 1) {
+            throw BusinessException.badRequest("页码必须大于等于1");
+        }
         int offset = (page - 1) * PAGE_SIZE;
         return voteRecordMapper.selectByVoteId(voteId, offset, PAGE_SIZE);
+    }
+
+    /**
+     * 全量分批读取投票记录，避免一次性 LIMIT 截断导致统计失真
+     */
+    private List<VoteRecord> loadAllRecords(Long voteId) {
+        List<VoteRecord> all = new ArrayList<>();
+        int batchSize = 2000;
+        int offset = 0;
+        while (true) {
+            List<VoteRecord> batch = voteRecordMapper.selectByVoteId(voteId, offset, batchSize);
+            all.addAll(batch);
+            if (batch.size() < batchSize) {
+                break;
+            }
+            offset += batchSize;
+        }
+        return all;
     }
 
     /**

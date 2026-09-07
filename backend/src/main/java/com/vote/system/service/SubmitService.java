@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -90,20 +90,96 @@ public class SubmitService {
     }
 
     private void validateAnswers(SubmitDTO dto, List<Question> questions) {
+        Map<Long, Question> questionMap = new HashMap<>();
+        Map<Long, Set<Long>> questionOptions = new HashMap<>();
         for (Question q : questions) {
-            if (q.getIsRequired() != null && q.getIsRequired() == 1) {
-                SubmitDTO.Answer answer = dto.getAnswers().stream()
-                        .filter(a -> a.getQuestionId().equals(q.getId()))
-                        .findFirst()
-                        .orElse(null);
-                if (answer == null || answer.getAnswer() == null) {
-                    throw BusinessException.badRequest("必填题未作答: " + q.getQuestionText());
+            questionMap.put(q.getId(), q);
+            Set<Long> optIds = new HashSet<>();
+            for (Option o : optionMapper.selectByQuestionId(q.getId())) {
+                optIds.add(o.getId());
+            }
+            questionOptions.put(q.getId(), optIds);
+        }
+
+        // ① 结构校验：每条答案必须对应本投票真实题目，且答案形态/选项合法
+        Set<Long> answeredQuestionIds = new HashSet<>();
+        for (SubmitDTO.Answer a : dto.getAnswers()) {
+            if (a.getQuestionId() == null) {
+                throw BusinessException.badRequest("答案缺少题目ID");
+            }
+            if (!answeredQuestionIds.add(a.getQuestionId())) {
+                throw BusinessException.badRequest("同一题目重复作答");
+            }
+            Question q = questionMap.get(a.getQuestionId());
+            if (q == null) {
+                throw BusinessException.badRequest("包含不属于本投票的题目");
+            }
+            Integer type = q.getQuestionType();
+            if (type == null || (type != 1 && type != 2 && type != 3)) {
+                throw BusinessException.badRequest("题目类型非法");
+            }
+            Object ans = a.getAnswer();
+            switch (type) {
+                case 1 -> { // 单选：单个选项ID
+                    Long optId = toLong(ans);
+                    if (optId == null || !questionOptions.get(q.getId()).contains(optId)) {
+                        throw BusinessException.badRequest("单选题答案无效: " + q.getQuestionText());
+                    }
                 }
-                if (answer.getAnswer() instanceof String s && s.isBlank()) {
-                    throw BusinessException.badRequest("必填题未作答: " + q.getQuestionText());
+                case 2 -> { // 多选：选项ID数组
+                    if (!(ans instanceof List<?> list)) {
+                        throw BusinessException.badRequest("多选题答案格式错误: " + q.getQuestionText());
+                    }
+                    for (Object o : list) {
+                        Long optId = toLong(o);
+                        if (optId == null || !questionOptions.get(q.getId()).contains(optId)) {
+                            throw BusinessException.badRequest("多选题答案包含无效选项: " + q.getQuestionText());
+                        }
+                    }
                 }
+                case 3 -> { // 填空：文本
+                    if (!(ans instanceof String)) {
+                        throw BusinessException.badRequest("填空题答案格式错误: " + q.getQuestionText());
+                    }
+                }
+                default -> throw BusinessException.badRequest("题目类型非法");
             }
         }
+
+        // ② 必填校验
+        for (Question q : questions) {
+            if (q.getIsRequired() == null || q.getIsRequired() != 1) {
+                continue;
+            }
+            SubmitDTO.Answer answer = dto.getAnswers().stream()
+                    .filter(a -> q.getId().equals(a.getQuestionId()))
+                    .findFirst()
+                    .orElse(null);
+            if (answer == null || isEmptyAnswer(answer.getAnswer())) {
+                throw BusinessException.badRequest("必填题未作答: " + q.getQuestionText());
+            }
+        }
+    }
+
+    /** 宽松地把 Number/数字字符串转 Long，失败返回 null */
+    private Long toLong(Object o) {
+        if (o == null) return null;
+        if (o instanceof Number n) return n.longValue();
+        if (o instanceof String s && !s.isBlank()) {
+            try {
+                return Long.valueOf(s.trim());
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private boolean isEmptyAnswer(Object ans) {
+        if (ans == null) return true;
+        if (ans instanceof String s) return s.isBlank();
+        if (ans instanceof List<?> l) return l.isEmpty();
+        return false;
     }
 
     private VoteVO getVoteVOInternal(Long voteId, String openid) {

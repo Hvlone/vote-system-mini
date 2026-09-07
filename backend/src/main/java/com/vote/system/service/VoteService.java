@@ -29,8 +29,11 @@ public class VoteService {
         Vote vote = new Vote();
         vote.setTitle(dto.getTitle());
         vote.setDescription(dto.getDescription());
-        vote.setStartTime(dto.getStartTime() != null ? dto.getStartTime() : LocalDateTime.now());
-        vote.setEndTime(dto.getEndTime() != null ? dto.getEndTime() : LocalDateTime.now().plusDays(7));
+        LocalDateTime start = dto.getStartTime() != null ? dto.getStartTime() : LocalDateTime.now();
+        LocalDateTime end = dto.getEndTime() != null ? dto.getEndTime() : LocalDateTime.now().plusDays(7);
+        validateTimeRange(start, end);
+        vote.setStartTime(start);
+        vote.setEndTime(end);
         vote.setStatus(0); // 创建为草稿，需 publish 发布后才可被填写
         vote.setCreatorId(creatorId);
         voteMapper.insert(vote);
@@ -118,11 +121,18 @@ public class VoteService {
         // 先删旧题目和选项，再重建
         optionMapper.deleteByVoteId(voteId);
         questionMapper.deleteByVoteId(voteId);
-        // 更新基本信息
+        // 更新基本信息（缺省时间沿用原值），题目随后重建
+        LocalDateTime start = dto.getStartTime() != null ? dto.getStartTime() : vote.getStartTime();
+        LocalDateTime end = dto.getEndTime() != null ? dto.getEndTime() : vote.getEndTime();
+        if (start == null || end == null) {
+            throw BusinessException.badRequest("开始时间和结束时间不能为空");
+        }
+        validateTimeRange(start, end);
         vote.setTitle(dto.getTitle());
         vote.setDescription(dto.getDescription());
-        vote.setStartTime(dto.getStartTime());
-        vote.setEndTime(dto.getEndTime());
+        vote.setStartTime(start);
+        vote.setEndTime(end);
+        voteMapper.updateBaseInfo(vote);
         // 重新插入题目
         for (VoteCreateDTO.QuestionDTO qDto : dto.getQuestions()) {
             Question q = new Question();
@@ -178,5 +188,11 @@ public class VoteService {
             throw BusinessException.forbidden("无权操作他人投票");
         }
         return vote;
+    }
+
+    private void validateTimeRange(LocalDateTime start, LocalDateTime end) {
+        if (!end.isAfter(start)) {
+            throw BusinessException.badRequest("结束时间必须晚于开始时间");
+        }
     }
 }
