@@ -114,7 +114,35 @@ public class StatsService {
             throw BusinessException.badRequest("页码必须大于等于1");
         }
         int offset = (page - 1) * PAGE_SIZE;
-        return voteRecordMapper.selectByVoteId(voteId, offset, PAGE_SIZE);
+        List<VoteRecord> records = voteRecordMapper.selectByVoteId(voteId, offset, PAGE_SIZE);
+        fillVoteTitle(records);
+        return records;
+    }
+
+    /**
+     * 我的投票记录（附投票标题，避免前端逐条二次查询）
+     */
+    public List<VoteRecord> getMyRecords(String openid) {
+        List<VoteRecord> records = voteRecordMapper.selectByOpenid(openid);
+        fillVoteTitle(records);
+        return records;
+    }
+
+    /**
+     * 按 vote_id 回填记录中的 voteTitle（同一投票在缓存中只查一次）
+     */
+    private void fillVoteTitle(List<VoteRecord> records) {
+        Map<Long, String> titleCache = new HashMap<>();
+        for (VoteRecord r : records) {
+            if (r.getVoteId() == null) {
+                continue;
+            }
+            String title = titleCache.computeIfAbsent(r.getVoteId(), id -> {
+                Vote v = voteMapper.selectById(id);
+                return v != null ? v.getTitle() : null;
+            });
+            r.setVoteTitle(title);
+        }
     }
 
     /**
@@ -133,13 +161,6 @@ public class StatsService {
             offset += batchSize;
         }
         return all;
-    }
-
-    /**
-     * 我的投票记录
-     */
-    public List<VoteRecord> getMyRecords(String openid) {
-        return voteRecordMapper.selectByOpenid(openid);
     }
 
     /**

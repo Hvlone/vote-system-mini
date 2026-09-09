@@ -65,7 +65,9 @@ CREATE TABLE IF NOT EXISTS `vote_record` (
   INDEX idx_vote_id (vote_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='投票记录表';
 
--- 7. IP限流记录表
+-- 7. IP限流记录表（规格预留）
+-- 注意：当前 IP 限流实现以 vote_record 按 (vote_id, ip_address, 60分钟窗口) 实时计数为准，
+--       见 VoteRecordMapper.countRecentByVoteIdAndIp；本表按 6 表规格保留暂不写入，勿重复实现两套。
 CREATE TABLE IF NOT EXISTS `ip_limit` (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
   ip_address VARCHAR(50) NOT NULL COMMENT 'IP地址',

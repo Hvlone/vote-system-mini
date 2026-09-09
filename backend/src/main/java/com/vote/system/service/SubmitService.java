@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vote.system.common.BusinessException;
 import com.vote.system.dto.SubmitDTO;
-import com.vote.system.dto.VoteVO;
 import com.vote.system.entity.Option;
 import com.vote.system.entity.Question;
 import com.vote.system.entity.Vote;
@@ -33,13 +32,6 @@ public class SubmitService {
 
     private static final int IP_WINDOW_MINUTES = 60;
     private static final int IP_MAX_SUBMIT = 3;
-
-    /**
-     * 公开浏览：未登录也能看活动详情
-     */
-    public VoteVO getVisible(Long voteId, String openid) {
-        return getVoteVOInternal(voteId, openid);
-    }
 
     /**
      * 提交投票：防重复双保险 + IP限流 + 必填校验
@@ -126,14 +118,18 @@ public class SubmitService {
                         throw BusinessException.badRequest("单选题答案无效: " + q.getQuestionText());
                     }
                 }
-                case 2 -> { // 多选：选项ID数组
+                case 2 -> { // 多选：选项ID数组（同一选项不可重复）
                     if (!(ans instanceof List<?> list)) {
                         throw BusinessException.badRequest("多选题答案格式错误: " + q.getQuestionText());
                     }
+                    Set<Long> seen = new HashSet<>();
                     for (Object o : list) {
                         Long optId = toLong(o);
                         if (optId == null || !questionOptions.get(q.getId()).contains(optId)) {
                             throw BusinessException.badRequest("多选题答案包含无效选项: " + q.getQuestionText());
+                        }
+                        if (!seen.add(optId)) {
+                            throw BusinessException.badRequest("多选题同一选项不可重复选择: " + q.getQuestionText());
                         }
                     }
                 }
@@ -180,46 +176,5 @@ public class SubmitService {
         if (ans instanceof String s) return s.isBlank();
         if (ans instanceof List<?> l) return l.isEmpty();
         return false;
-    }
-
-    private VoteVO getVoteVOInternal(Long voteId, String openid) {
-        Vote vote = voteMapper.selectById(voteId);
-        if (vote == null) {
-            throw BusinessException.notFound("投票活动不存在");
-        }
-        // 草稿未发布，对外不可见（含创建者，创建者应走 /votes/{id} 管理接口）
-        if (vote.getStatus() == 0) {
-            throw BusinessException.notFound("投票尚未发布");
-        }
-        VoteVO vo = new VoteVO();
-        vo.setId(vote.getId());
-        vo.setTitle(vote.getTitle());
-        vo.setDescription(vote.getDescription());
-        vo.setStartTime(vote.getStartTime());
-        vo.setEndTime(vote.getEndTime());
-        vo.setStatus(vote.getStatus());
-        vo.setCreatorId(vote.getCreatorId());
-
-        if (openid != null) {
-            VoteRecord record = voteRecordMapper.selectByOpenidAndVoteId(openid, voteId);
-            vo.setHasVoted(record != null);
-        } else {
-            vo.setHasVoted(false);
-        }
-
-        List<Question> qs = questionMapper.selectByVoteId(voteId);
-        List<VoteVO.QuestionVO> qvos = new java.util.ArrayList<>();
-        for (Question q : qs) {
-            VoteVO.QuestionVO qvo = new VoteVO.QuestionVO();
-            qvo.setId(q.getId());
-            qvo.setQuestionText(q.getQuestionText());
-            qvo.setQuestionType(q.getQuestionType());
-            qvo.setIsRequired(q.getIsRequired());
-            qvo.setSortOrder(q.getSortOrder());
-            qvo.setOptions(optionMapper.selectByQuestionId(q.getId()));
-            qvos.add(qvo);
-        }
-        vo.setQuestions(qvos);
-        return vo;
     }
 }

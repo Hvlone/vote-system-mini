@@ -74,6 +74,29 @@ public class VoteService {
         if (vote.getStatus() == 0 && !vote.getCreatorId().equals(userId)) {
             throw BusinessException.forbidden("投票尚未发布");
         }
+        return buildDetail(vote, openid);
+    }
+
+    /**
+     * 公开详情（免登录浏览，见 GET /votes/{id}/visible）：
+     * 与 getVoteVO 共用 buildDetail，仅草稿对外一律视为不存在。
+     */
+    public VoteVO getVisibleDetail(Long voteId, String openid) {
+        Vote vote = voteMapper.selectById(voteId);
+        if (vote == null) {
+            throw BusinessException.notFound("投票活动不存在");
+        }
+        // 草稿未发布，对外不可见（含创建者，创建者应走管理接口 GET /votes/{id}）
+        if (vote.getStatus() == 0) {
+            throw BusinessException.notFound("投票尚未发布");
+        }
+        return buildDetail(vote, openid);
+    }
+
+    /**
+     * 详情 VO 公共组装：基础信息 + hasVoted + 题目选项（两处详情接口共用）
+     */
+    private VoteVO buildDetail(Vote vote, String openid) {
         VoteVO vo = new VoteVO();
         vo.setId(vote.getId());
         vo.setTitle(vote.getTitle());
@@ -84,13 +107,13 @@ public class VoteService {
         vo.setCreatorId(vote.getCreatorId());
 
         if (openid != null) {
-            VoteRecord record = voteRecordMapper.selectByOpenidAndVoteId(openid, voteId);
+            VoteRecord record = voteRecordMapper.selectByOpenidAndVoteId(openid, vote.getId());
             vo.setHasVoted(record != null);
         } else {
             vo.setHasVoted(false);
         }
 
-        List<Question> questions = questionMapper.selectByVoteId(voteId);
+        List<Question> questions = questionMapper.selectByVoteId(vote.getId());
         List<VoteVO.QuestionVO> qvos = new ArrayList<>();
         for (Question q : questions) {
             VoteVO.QuestionVO qvo = new VoteVO.QuestionVO();

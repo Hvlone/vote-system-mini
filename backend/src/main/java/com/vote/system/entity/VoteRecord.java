@@ -11,4 +11,6 @@ public class VoteRecord {
     private String answerContent;
     private String ipAddress;
     private LocalDateTime submittedAt;
+    /** 冗余展示字段：投票标题（非表列，由接口层回填，便于前端列表直接展示） */
+    private String voteTitle;
 }
