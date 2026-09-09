@@ -26,6 +26,7 @@ public class VoteService {
 
     @Transactional
     public Long create(VoteCreateDTO dto, Long creatorId) {
+        validateQuestions(dto.getQuestions());
         Vote vote = new Vote();
         vote.setTitle(dto.getTitle());
         vote.setDescription(dto.getDescription());
@@ -118,6 +119,8 @@ public class VoteService {
         if (vote.getStatus() != 0) {
             throw BusinessException.badRequest("仅草稿状态的投票可以编辑");
         }
+        // 题型与选项语义校验通过后才重建题目，避免发布无法作答的投票
+        validateQuestions(dto.getQuestions());
         // 先删旧题目和选项，再重建
         optionMapper.deleteByVoteId(voteId);
         questionMapper.deleteByVoteId(voteId);
@@ -188,6 +191,30 @@ public class VoteService {
             throw BusinessException.forbidden("无权操作他人投票");
         }
         return vote;
+    }
+
+    /**
+     * 语义校验：题型必须在 {1单选,2多选,3填空} 内，且单选/多选必须带选项、填空题不应带选项。
+     * 与提交侧 validateAnswers 保持一致，防止创建出他人永远无法作答的投票。
+     */
+    private void validateQuestions(List<VoteCreateDTO.QuestionDTO> questions) {
+        if (questions == null || questions.isEmpty()) {
+            throw BusinessException.badRequest("至少添加一道题目");
+        }
+        for (VoteCreateDTO.QuestionDTO q : questions) {
+            Integer type = q.getQuestionType();
+            if (type == null || (type != 1 && type != 2 && type != 3)) {
+                throw BusinessException.badRequest("题目类型非法: " + q.getQuestionText());
+            }
+            List<VoteCreateDTO.OptionDTO> options = q.getOptions();
+            boolean hasOptions = options != null && !options.isEmpty();
+            if (type != 3 && !hasOptions) {
+                throw BusinessException.badRequest("单选/多选题至少需要一个选项: " + q.getQuestionText());
+            }
+            if (type == 3 && hasOptions) {
+                throw BusinessException.badRequest("填空题不应包含选项: " + q.getQuestionText());
+            }
+        }
     }
 
     private void validateTimeRange(LocalDateTime start, LocalDateTime end) {
