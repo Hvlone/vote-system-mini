@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS `vote_record` (
   id BIGINT PRIMARY KEY AUTO_INCREMENT COMMENT '主键ID',
   openid VARCHAR(100) NOT NULL COMMENT '用户OpenID',
   vote_id BIGINT NOT NULL COMMENT '关联投票ID',
-  answer_content JSON NOT NULL COMMENT '答案内容:[{question_id, answer}]',
+  answer_content JSON NOT NULL COMMENT '答案内容:[{questionId, answer}]',
   ip_address VARCHAR(50) COMMENT '操作IP',
   submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
   UNIQUE KEY uk_user_vote (openid, vote_id),
@@ -106,5 +106,5 @@ INSERT INTO `question` (vote_id, question_text, question_type, is_required, sort
 -- 一条示例投票记录（用于验证唯一索引）
 INSERT INTO `vote_record` (openid, vote_id, answer_content, ip_address) VALUES
 ('test_openid_002', @vote_id,
- '[{"question_id":1,"answer":[1]},{"question_id":2,"answer":[1,2]},{"question_id":3,"answer":"很好"}]',
+ '[{"questionId":1,"answer":[1]},{"questionId":2,"answer":[1,2]},{"questionId":3,"answer":"很好"}]',
  '127.0.0.1');
