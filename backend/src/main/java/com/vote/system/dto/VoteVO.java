@@ -16,6 +16,8 @@ public class VoteVO {
     private Integer status;
     private Long creatorId;
     private Boolean hasVoted;
+    /** 是否已过结束时间（推导字段；到期不改 status，由前端据此展示"已结束"并禁止填写） */
+    private Boolean expired;
     private List<QuestionVO> questions;
 
     @Data

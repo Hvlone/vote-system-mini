@@ -62,7 +62,12 @@ public class VoteService {
     }
 
     public List<Vote> listMyVotes(Long creatorId) {
-        return voteMapper.selectByCreator(creatorId);
+        List<Vote> votes = voteMapper.selectByCreator(creatorId);
+        // 到期不改 status(状态机单向)，此处推导 expired 供前端直接展示"已结束/截止"
+        for (Vote v : votes) {
+            v.setExpired(v.getEndTime() != null && LocalDateTime.now().isAfter(v.getEndTime()));
+        }
+        return votes;
     }
 
     public VoteVO getVoteVO(Long voteId, Long userId, String openid) {
@@ -105,6 +110,8 @@ public class VoteService {
         vo.setEndTime(vote.getEndTime());
         vo.setStatus(vote.getStatus());
         vo.setCreatorId(vote.getCreatorId());
+        // 到期不改 status(状态机单向)，推导 expired 供前端展示"已结束"并禁用填写按钮
+        vo.setExpired(vote.getEndTime() != null && LocalDateTime.now().isAfter(vote.getEndTime()));
 
         if (openid != null) {
             VoteRecord record = voteRecordMapper.selectByOpenidAndVoteId(openid, vote.getId());
