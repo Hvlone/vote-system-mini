@@ -1,0 +1,26 @@
+{
+  "name": "线上投票",
+  "appid": "",
+  "description": "线上投票/问卷小程序",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "mp-weixin": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true
+    },
+    "usingComponents": true
+  },
+  "h5": {
+    "router": {
+      "mode": "hash"
+    },
+    "devServer": {
+      "port": 5173
+    }
+  },
+  "vueVersion": "3"
+}
