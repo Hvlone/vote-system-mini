@@ -60,6 +60,13 @@
 
         <!-- 不可参与：置灰文案（草稿由上面的管理按钮承担，不显示文案） -->
         <view v-else-if="disabledText" class="btn btn-disabled footer-btn">{{ disabledText }}</view>
+
+        <!-- 转发分享入口：仅小程序端渲染（open-type=share 依赖微信环境）；草稿对外 404，不给分享入口 -->
+        <!-- #ifdef MP-WEIXIN -->
+        <button v-if="vote.status !== 0" class="btn btn-plain footer-btn" open-type="share">
+          分享给好友
+        </button>
+        <!-- #endif -->
       </view>
     </block>
   </view>
@@ -67,7 +74,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getVoteDetail, getVisibleVote, publishVote, stopVote } from '../../api/vote'
 import { formatDateTime } from '../../utils/datetime'
 import {
@@ -116,6 +123,12 @@ async function loadVote() {
     vote.value = isManage.value
       ? await getVoteDetail(voteId.value)
       : await getVisibleVote(voteId.value)
+    // #ifdef MP-WEIXIN
+    // 草稿对外一律 404，隐藏转发菜单避免分享出打不开的链接
+    if (vote.value && vote.value.status === 0) {
+      uni.hideShareMenu()
+    }
+    // #endif
   } catch (e) {
     // 404（不存在或草稿对外不可见）/ 403（非创建者）等失败提示已由 request.js 弹出
     setTimeout(() => uni.navigateBack(), 900)
@@ -195,6 +208,26 @@ onShow(() => {
   if (!ensureLogin()) return
   loadVote()
 })
+
+/** 转发卡片标题：带前缀便于在会话列表里识别是投票活动 */
+function shareTitle() {
+  const title = vote.value && vote.value.title
+  return title ? `【投票】${title}` : '邀请你参与投票'
+}
+
+// #ifdef MP-WEIXIN
+/** 转发给好友：路径固定为分享视角（不带 mode=manage），对方点开即公开详情 */
+onShareAppMessage(() => ({
+  title: shareTitle(),
+  path: `/pages/detail/index?id=${voteId.value}`
+}))
+
+/** 分享到朋友圈：朋友圈入口用 query（而非 path），页面路径由微信补全 */
+onShareTimeline(() => ({
+  title: shareTitle(),
+  query: `id=${voteId.value}`
+}))
+// #endif
 </script>
 
 <style scoped>
