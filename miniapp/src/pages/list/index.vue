@@ -5,7 +5,7 @@
         <text class="header-title">我创建的投票</text>
         <text class="header-sub">{{ nickname || '未设置昵称' }}</text>
       </view>
-      <text class="header-action" @click="handleLogout">退出登录</text>
+      <text class="header-action" @click="goMine">我的</text>
     </view>
 
     <view class="create-row">
@@ -46,6 +46,12 @@
             >发布</text
           >
           <text v-if="item.status === 1" class="act" @click.stop="handleStop(item)">停止</text>
+          <text
+            v-if="item.status !== 0"
+            class="act act-primary"
+            @click.stop="goStats(item)"
+            >查看统计</text
+          >
           <text class="act act-danger" @click.stop="handleDelete(item)">删除</text>
         </view>
       </view>
@@ -57,7 +63,6 @@
 import { ref } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { listMyVotes, publishVote, stopVote, deleteVote } from '../../api/vote'
-import { logout } from '../../api/auth'
 import { formatDateTime } from '../../utils/datetime'
 import { VOTE_STATE, voteState, voteStateText, voteStateClass } from '../../utils/voteState'
 
@@ -89,6 +94,16 @@ function goEdit(item) {
 /** 管理视角详情：可读草稿，带编辑/发布/停止操作 */
 function goDetail(item) {
   uni.navigateTo({ url: `/pages/detail/index?id=${item.id}&mode=manage` })
+}
+
+/** 查看统计：仅创建者可见（草稿无统计入口） */
+function goStats(item) {
+  uni.navigateTo({ url: `/pages/stats/index?id=${item.id}` })
+}
+
+/** 进入我的页（昵称/我的记录/退出登录都在那里） */
+function goMine() {
+  uni.navigateTo({ url: '/pages/mine/index' })
 }
 
 function handlePublish(item) {
@@ -138,25 +153,6 @@ function handleDelete(item) {
       } catch (e) {
         // 失败提示已由 request.js 统一弹出
       }
-    }
-  })
-}
-
-function handleLogout() {
-  uni.showModal({
-    title: '退出登录',
-    content: '确定退出当前账号？',
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        // 后端无状态，仅清 ThreadLocal；失败也要继续清本地登录态
-        await logout()
-      } catch (e) {
-        // 忽略：本地登录态下面统一清理
-      }
-      uni.removeStorageSync('token')
-      uni.removeStorageSync('userInfo')
-      uni.reLaunch({ url: '/pages/login/index' })
     }
   })
 }

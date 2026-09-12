@@ -44,6 +44,15 @@
           停止投票
         </button>
 
+        <!-- 管理视角（非草稿）：查看统计 -->
+        <button
+          v-if="isManage && vote.status !== 0"
+          class="btn btn-plain footer-btn"
+          @click="goStats"
+        >
+          查看统计
+        </button>
+
         <!-- 参与入口：进行中且未投过 -->
         <button v-if="canParticipate" class="btn btn-primary footer-btn" @click="goAnswer">
           去投票
@@ -122,6 +131,11 @@ function goEdit() {
 /** 去答题 */
 function goAnswer() {
   uni.navigateTo({ url: `/pages/answer/index?id=${voteId.value}` })
+}
+
+/** 查看统计：仅创建者可见（后端对非创建者返回 403） */
+function goStats() {
+  uni.navigateTo({ url: `/pages/stats/index?id=${voteId.value}` })
 }
 
 function handlePublish() {
