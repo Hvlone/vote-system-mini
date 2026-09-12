@@ -24,6 +24,12 @@
       "style": {
         "navigationBarTitleText": "投票详情"
       }
+    },
+    {
+      "path": "pages/answer/index",
+      "style": {
+        "navigationBarTitleText": "填写投票"
+      }
     }
   ],
   "globalStyle": {

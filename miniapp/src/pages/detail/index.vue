@@ -29,22 +29,28 @@
       </view>
 
       <view class="footer">
-        <block v-if="isManage">
-          <button v-if="vote.status === 0" class="btn btn-plain footer-btn" @click="goEdit">
-            编辑
-          </button>
-          <button v-if="vote.status === 0" class="btn btn-primary footer-btn" @click="handlePublish">
-            发布
-          </button>
-          <button v-if="vote.status === 1" class="btn btn-primary footer-btn" @click="handleStop">
-            停止投票
-          </button>
+        <!-- 管理视角（草稿）：编辑 / 发布 -->
+        <block v-if="isManage && vote.status === 0">
+          <button class="btn btn-plain footer-btn" @click="goEdit">编辑</button>
+          <button class="btn btn-primary footer-btn" @click="handlePublish">发布</button>
         </block>
 
-        <!-- 未开始 / 已截止 / 已结束 的禁用态提示；「去投票」入口在批 3 与答题页一起接入 -->
-        <view v-if="vote.status !== 0 && voteState(vote) !== VOTE_STATE.ONGOING" class="btn btn-disabled footer-btn">
-          {{ disabledText }}
-        </view>
+        <!-- 管理视角（发布中）：停止 -->
+        <button
+          v-else-if="isManage && vote.status === 1"
+          class="btn btn-primary footer-btn"
+          @click="handleStop"
+        >
+          停止投票
+        </button>
+
+        <!-- 参与入口：进行中且未投过 -->
+        <button v-if="canParticipate" class="btn btn-primary footer-btn" @click="goAnswer">
+          去投票
+        </button>
+
+        <!-- 不可参与：置灰文案（草稿由上面的管理按钮承担，不显示文案） -->
+        <view v-else-if="disabledText" class="btn btn-disabled footer-btn">{{ disabledText }}</view>
       </view>
     </block>
   </view>
@@ -59,7 +65,8 @@ import {
   VOTE_STATE,
   voteState,
   voteStateText,
-  voteStateClass
+  voteStateClass,
+  canSubmit
 } from '../../utils/voteState'
 
 const QUESTION_TYPE = { SINGLE: 1, MULTI: 2, TEXT: 3 }
@@ -76,12 +83,22 @@ function typeLabel(type) {
   return '填空题'
 }
 
+/** 参与入口是否可用：发布中 + 在时间窗内 + 未投过 */
+const canParticipate = computed(() => {
+  if (!vote.value || vote.value.hasVoted === true) return false
+  return canSubmit(vote.value)
+})
+
+/** 不可参与时的置灰文案（草稿由管理按钮承担，不显示文案） */
 const disabledText = computed(() => {
   if (!vote.value) return ''
+  if (vote.value.status === 0) return ''
+  if (vote.value.hasVoted === true) return '已投票'
   const state = voteState(vote.value)
   if (state === VOTE_STATE.NOT_STARTED) return '未开始'
   if (state === VOTE_STATE.EXPIRED) return '已截止'
-  return '已结束'
+  if (state === VOTE_STATE.STOPPED) return '已结束'
+  return ''
 })
 
 async function loadVote() {
@@ -100,6 +117,11 @@ async function loadVote() {
 
 function goEdit() {
   uni.navigateTo({ url: `/pages/create/index?id=${voteId.value}` })
+}
+
+/** 去答题 */
+function goAnswer() {
+  uni.navigateTo({ url: `/pages/answer/index?id=${voteId.value}` })
 }
 
 function handlePublish() {
@@ -141,14 +163,23 @@ onLoad((query) => {
   isManage.value = !!(query && query.mode === 'manage')
 })
 
-// 用 onShow：从编辑页返回时需要重新拉取最新内容
+/** 登录守卫：投票详情需登录后才能浏览；未登录则跳登录页并带回跳地址 */
+function ensureLogin() {
+  if (uni.getStorageSync('token')) return true
+  const back = `/pages/detail/index?id=${voteId.value}${isManage.value ? '&mode=manage' : ''}`
+  uni.redirectTo({ url: `/pages/login/index?redirect=${encodeURIComponent(back)}` })
+  return false
+}
+
+// 用 onShow：从编辑页返回时需要重新拉取最新内容；登录回跳后也走这里
 onShow(() => {
-  if (voteId.value) {
-    loadVote()
-  } else {
+  if (!voteId.value) {
     uni.showToast({ title: '缺少活动 id', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 800)
+    return
   }
+  if (!ensureLogin()) return
+  loadVote()
 })
 </script>
 

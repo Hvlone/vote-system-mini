@@ -47,6 +47,8 @@ import { login } from '../../api/auth'
 const nickname = ref('')
 const debugCode = ref('')
 const logining = ref(false)
+// 登录成功后的回跳地址（如从答题页跳来时带入），为空则进列表页
+const redirect = ref('')
 
 /** 保存登录态（token + 用户信息），供 request.js 与列表页使用 */
 function saveLoginState(data) {
@@ -59,8 +61,25 @@ function saveLoginState(data) {
   })
 }
 
-function goList() {
-  uni.reLaunch({ url: '/pages/list/index' })
+/** 解析回跳地址：仅允许站内页面路径，兼容已解码 / 未解码两种入参 */
+function normalizeRedirect(value) {
+  if (!value) return ''
+  let text = String(value)
+  try {
+    if (text.indexOf('%') > -1) text = decodeURIComponent(text)
+  } catch (e) {
+    return ''
+  }
+  return text.indexOf('/pages/') === 0 ? text : ''
+}
+
+/** 登录成功后的落地页：带 redirect 则回跳（如答题页），否则进列表页 */
+function goNext() {
+  if (redirect.value) {
+    uni.redirectTo({ url: redirect.value })
+  } else {
+    uni.reLaunch({ url: '/pages/list/index' })
+  }
 }
 
 /** 统一登录流程：拿 code 换 token */
@@ -71,7 +90,7 @@ async function doLogin(code) {
     const data = await login({ code, nickname: nickname.value.trim() || undefined })
     saveLoginState(data)
     uni.showToast({ title: '登录成功', icon: 'success' })
-    setTimeout(goList, 300)
+    setTimeout(goNext, 300)
   } catch (e) {
     // 失败提示已由 request.js 统一弹出
   } finally {
@@ -106,10 +125,11 @@ function handleDebugLogin() {
   doLogin(code)
 }
 
-onLoad(() => {
-  // 已有 token 直接进入列表页，避免重复登录
+onLoad((query) => {
+  redirect.value = normalizeRedirect(query && query.redirect)
+  // 已有 token 直接进入落地页，避免重复登录
   if (uni.getStorageSync('token')) {
-    goList()
+    goNext()
   }
 })
 </script>
