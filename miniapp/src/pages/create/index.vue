@@ -1,5 +1,5 @@
 <template>
-  <view class="create">
+  <view class="create" :class="{ 'theme-dark': theme.dark }">
     <view class="card">
       <view class="field">
         <text class="label">投票标题 <text class="required">*</text></text>
@@ -130,6 +130,9 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { createVote, editVote, getVoteDetail } from '../../api/vote'
 import { toIso, formatDateTime } from '../../utils/datetime'
+import { useTheme } from '../../utils/theme'
+
+const theme = useTheme()
 
 // 题型：与后端约定一致（1 单选 / 2 多选 / 3 填空）
 const QUESTION_TYPE = { SINGLE: 1, MULTI: 2, TEXT: 3 }
@@ -355,12 +358,15 @@ onLoad((query) => {
 .create {
   min-height: 100vh;
   padding-bottom: 60rpx;
+  background-color: var(--page-bg);
+  /* 阻断首个子元素的上外边距逃逸出本容器，否则页面顶部会露出底层画布 */
+  overflow: hidden;
 }
 
 .card-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .field {
@@ -375,18 +381,19 @@ onLoad((query) => {
   display: block;
   margin-bottom: 16rpx;
   font-size: 26rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .required {
-  color: #ff4d4f;
+  color: var(--danger);
 }
 
 .input {
   height: 84rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  background-color: #f7f8fa;
+  color: var(--text-primary);
+  background-color: var(--block-bg);
   border-radius: 12rpx;
   box-sizing: border-box;
 }
@@ -396,19 +403,20 @@ onLoad((query) => {
   height: 140rpx;
   padding: 20rpx 24rpx;
   font-size: 28rpx;
-  background-color: #f7f8fa;
+  color: var(--text-primary);
+  background-color: var(--block-bg);
   border-radius: 12rpx;
   box-sizing: border-box;
 }
 
 .ph {
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 
 .tip {
   margin-top: 12rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .time-row {
@@ -420,7 +428,7 @@ onLoad((query) => {
 .time-label {
   width: 80rpx;
   font-size: 26rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .time-value {
@@ -428,20 +436,20 @@ onLoad((query) => {
   margin-right: 16rpx;
   padding: 16rpx 20rpx;
   font-size: 26rpx;
-  color: #1f2329;
-  background-color: #f7f8fa;
+  color: var(--text-primary);
+  background-color: var(--block-bg);
   border-radius: 12rpx;
   text-align: center;
 }
 
 .time-empty {
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 
 .time-clear {
   padding-left: 8rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .q-head {
@@ -454,7 +462,7 @@ onLoad((query) => {
 .q-index {
   font-size: 28rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .q-ops {
@@ -465,11 +473,11 @@ onLoad((query) => {
 .q-op {
   margin-left: 28rpx;
   font-size: 24rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .q-op-danger {
-  color: #ff4d4f;
+  color: var(--danger);
 }
 
 .chips {
@@ -482,14 +490,14 @@ onLoad((query) => {
   margin-right: 16rpx;
   padding: 12rpx 28rpx;
   font-size: 26rpx;
-  color: #646a73;
-  background-color: #f2f3f5;
+  color: var(--text-secondary);
+  background-color: var(--mute-bg);
   border-radius: 100rpx;
 }
 
 .chip-active {
   color: #ffffff;
-  background-color: #07c160;
+  background-color: var(--brand);
 }
 
 .switch-row {
@@ -506,7 +514,7 @@ onLoad((query) => {
 .options {
   margin-top: 24rpx;
   padding-top: 24rpx;
-  border-top: 1rpx solid #f0f1f3;
+  border-top: 1rpx solid var(--border-color);
 }
 
 .option-row {
@@ -518,7 +526,7 @@ onLoad((query) => {
 .option-index {
   width: 40rpx;
   font-size: 26rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .option-input {
@@ -529,7 +537,7 @@ onLoad((query) => {
   display: inline-block;
   margin-top: 8rpx;
   font-size: 26rpx;
-  color: #07c160;
+  color: var(--brand);
 }
 
 .footer {
@@ -540,7 +548,7 @@ onLoad((query) => {
 .footer-tip {
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
   text-align: center;
 }
 </style>

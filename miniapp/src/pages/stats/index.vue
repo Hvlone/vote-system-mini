@@ -1,5 +1,5 @@
 <template>
-  <view class="stats">
+  <view class="stats" :class="{ 'theme-dark': theme.dark }">
     <view v-if="loading" class="tip">加载中...</view>
 
     <block v-else-if="stats">
@@ -76,6 +76,9 @@ import { onLoad } from '@dcloudio/uni-app'
 import { getStats, getDetails } from '../../api/stats'
 import { getVoteDetail } from '../../api/vote'
 import { formatDateTime } from '../../utils/datetime'
+import { useTheme } from '../../utils/theme'
+
+const theme = useTheme()
 
 const QUESTION_TYPE = { SINGLE: 1, MULTI: 2, TEXT: 3 }
 // 后端 /details 固定每页 20 条且无 total，只能以「返回条数 < 20」判定到底
@@ -199,32 +202,35 @@ onLoad((query) => {
 .stats {
   min-height: 100vh;
   padding-bottom: 60rpx;
+  background-color: var(--page-bg);
+  /* 阻断首个子元素的上外边距逃逸出本容器，否则页面顶部会露出底层画布 */
+  overflow: hidden;
 }
 
 .tip {
   padding: 40rpx 0;
   text-align: center;
   font-size: 26rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .summary-title {
   display: block;
   font-size: 32rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .summary-total {
   margin-top: 16rpx;
   font-size: 26rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .summary-num {
   font-size: 40rpx;
   font-weight: bold;
-  color: #07c160;
+  color: var(--brand);
 }
 
 .empty {
@@ -236,14 +242,14 @@ onLoad((query) => {
 .empty-title {
   display: block;
   font-size: 30rpx;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .empty-sub {
   display: block;
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .q-head {
@@ -255,14 +261,14 @@ onLoad((query) => {
   flex: 1;
   margin-right: 16rpx;
   font-size: 30rpx;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .q-type {
   padding: 4rpx 12rpx;
   font-size: 22rpx;
-  color: #8a8f99;
-  background-color: #f2f3f5;
+  color: var(--text-tertiary);
+  background-color: var(--mute-bg);
   border-radius: 8rpx;
 }
 
@@ -284,25 +290,25 @@ onLoad((query) => {
   flex: 1;
   margin-right: 16rpx;
   font-size: 26rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .opt-num {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .bar {
   height: 16rpx;
   margin-top: 10rpx;
-  background-color: #f2f3f5;
+  background-color: var(--mute-bg);
   border-radius: 8rpx;
   overflow: hidden;
 }
 
 .bar-inner {
   height: 100%;
-  background-color: #07c160;
+  background-color: var(--brand);
   border-radius: 8rpx;
 }
 
@@ -310,8 +316,8 @@ onLoad((query) => {
   margin-top: 20rpx;
   padding: 20rpx;
   font-size: 26rpx;
-  color: #646a73;
-  background-color: #f7f8fa;
+  color: var(--text-secondary);
+  background-color: var(--block-bg);
   border-radius: 12rpx;
 }
 
@@ -320,23 +326,23 @@ onLoad((query) => {
   align-items: center;
   justify-content: space-between;
   padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f0f1f3;
+  border-bottom: 1rpx solid var(--border-color);
 }
 
 .section-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .section-sub {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .record {
   padding: 24rpx 0;
-  border-bottom: 1rpx solid #f7f8fa;
+  border-bottom: 1rpx solid var(--block-bg);
 }
 
 .record-head {
@@ -347,12 +353,12 @@ onLoad((query) => {
 
 .record-index {
   font-size: 24rpx;
-  color: #07c160;
+  color: var(--brand);
 }
 
 .record-time {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .record-item {
@@ -362,14 +368,14 @@ onLoad((query) => {
 .record-q {
   display: block;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .record-a {
   display: block;
   margin-top: 4rpx;
   font-size: 26rpx;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .more {
@@ -380,6 +386,6 @@ onLoad((query) => {
   padding-top: 24rpx;
   text-align: center;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <view class="list">
+  <view class="list" :class="{ 'theme-dark': theme.dark }">
     <view class="header">
       <view class="header-left">
         <text class="header-title">我创建的投票</text>
@@ -65,7 +65,9 @@ import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
 import { listMyVotes, publishVote, stopVote, deleteVote } from '../../api/vote'
 import { formatDateTime } from '../../utils/datetime'
 import { VOTE_STATE, voteState, voteStateText, voteStateClass } from '../../utils/voteState'
+import { useTheme } from '../../utils/theme'
 
+const theme = useTheme()
 const votes = ref([])
 const loading = ref(false)
 const nickname = ref('')
@@ -174,6 +176,7 @@ onPullDownRefresh(async () => {
 .list {
   min-height: 100vh;
   padding-bottom: 40rpx;
+  background-color: var(--page-bg);
 }
 
 .header {
@@ -187,19 +190,19 @@ onPullDownRefresh(async () => {
   display: block;
   font-size: 40rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .header-sub {
   display: block;
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .header-action {
   font-size: 26rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .create-row {
@@ -210,7 +213,7 @@ onPullDownRefresh(async () => {
   padding: 80rpx 0;
   text-align: center;
   font-size: 26rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .empty {
@@ -222,14 +225,14 @@ onPullDownRefresh(async () => {
 .empty-title {
   display: block;
   font-size: 30rpx;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .empty-sub {
   display: block;
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .vote-head {
@@ -243,7 +246,7 @@ onPullDownRefresh(async () => {
   margin-right: 16rpx;
   font-size: 32rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -252,13 +255,13 @@ onPullDownRefresh(async () => {
 .vote-desc {
   margin-top: 16rpx;
   font-size: 26rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .vote-time {
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .vote-actions {
@@ -266,20 +269,20 @@ onPullDownRefresh(async () => {
   justify-content: flex-end;
   margin-top: 24rpx;
   padding-top: 24rpx;
-  border-top: 1rpx solid #f0f1f3;
+  border-top: 1rpx solid var(--border-color);
 }
 
 .act {
   margin-left: 32rpx;
   font-size: 26rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .act-primary {
-  color: #07c160;
+  color: var(--brand);
 }
 
 .act-danger {
-  color: #ff4d4f;
+  color: var(--danger);
 }
 </style>

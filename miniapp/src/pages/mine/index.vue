@@ -1,11 +1,19 @@
 <template>
-  <view class="mine">
+  <view class="mine" :class="{ 'theme-dark': theme.dark }">
     <view class="card profile">
       <view class="avatar">{{ avatarText }}</view>
       <view class="profile-info">
         <text class="profile-name">{{ nickname || '未设置昵称' }}</text>
         <text class="profile-sub">微信登录</text>
       </view>
+    </view>
+
+    <view class="card setting">
+      <view class="setting-row">
+        <text class="setting-label">暗夜模式</text>
+        <switch :checked="theme.dark" color="#07c160" @change="onThemeChange" />
+      </view>
+      <view class="setting-tip">默认开启；关闭后回到浅色界面</view>
     </view>
 
     <view class="create-row">
@@ -46,13 +54,20 @@ import { onShow } from '@dcloudio/uni-app'
 import { getMyRecords } from '../../api/vote'
 import { logout } from '../../api/auth'
 import { formatDateTime } from '../../utils/datetime'
+import { setDark, useTheme } from '../../utils/theme'
 
+const theme = useTheme()
 const records = ref([])
 const loading = ref(false)
 const nickname = ref('')
 
 // 后端无头像字段（登录仅回传 nickname），用昵称首字作默认头像
 const avatarText = computed(() => (nickname.value ? nickname.value.charAt(0) : '我'))
+
+/** 暗夜模式开关：立即生效并写入本地，下次启动沿用 */
+function onThemeChange(e) {
+  setDark(e.detail.value)
+}
 
 /** 拉取「我参与过的投票」（含 voteTitle；后端无分页，一次性返回） */
 async function loadRecords() {
@@ -107,6 +122,9 @@ onShow(() => {
 .mine {
   min-height: 100vh;
   padding-bottom: 60rpx;
+  background-color: var(--page-bg);
+  /* 阻断首个子元素的上外边距逃逸出本容器，否则页面顶部会露出底层画布 */
+  overflow: hidden;
 }
 
 .profile {
@@ -123,7 +141,7 @@ onShow(() => {
   font-size: 40rpx;
   color: #ffffff;
   text-align: center;
-  background-color: #07c160;
+  background-color: var(--brand);
   border-radius: 50%;
 }
 
@@ -135,14 +153,31 @@ onShow(() => {
   display: block;
   font-size: 34rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .profile-sub {
   display: block;
   margin-top: 8rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.setting-label {
+  font-size: 30rpx;
+  color: var(--text-primary);
+}
+
+.setting-tip {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: var(--text-tertiary);
 }
 
 .create-row {
@@ -159,19 +194,19 @@ onShow(() => {
 .section-title {
   font-size: 30rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .section-sub {
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .tip {
   padding: 60rpx 0;
   text-align: center;
   font-size: 26rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .empty {
@@ -183,14 +218,14 @@ onShow(() => {
 .empty-title {
   display: block;
   font-size: 30rpx;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .empty-sub {
   display: block;
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .record-head {
@@ -204,7 +239,7 @@ onShow(() => {
   margin-right: 16rpx;
   font-size: 32rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -212,13 +247,13 @@ onShow(() => {
 
 .record-arrow {
   font-size: 36rpx;
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 
 .record-time {
   margin-top: 12rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .logout-row {

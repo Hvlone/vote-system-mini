@@ -45,9 +45,9 @@
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "black",
+    "navigationBarTextStyle": "white",
     "navigationBarTitleText": "线上投票",
-    "navigationBarBackgroundColor": "#FFFFFF",
-    "backgroundColor": "#F5F6F8"
+    "navigationBarBackgroundColor": "#000000",
+    "backgroundColor": "#000000"
   }
 }

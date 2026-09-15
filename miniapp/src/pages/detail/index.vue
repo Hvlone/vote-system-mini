@@ -1,5 +1,5 @@
 <template>
-  <view class="detail">
+  <view class="detail" :class="{ 'theme-dark': theme.dark }">
     <view v-if="loading" class="tip">加载中...</view>
 
     <block v-else-if="vote">
@@ -84,6 +84,9 @@ import {
   voteStateClass,
   canSubmit
 } from '../../utils/voteState'
+import { useTheme } from '../../utils/theme'
+
+const theme = useTheme()
 
 const QUESTION_TYPE = { SINGLE: 1, MULTI: 2, TEXT: 3 }
 
@@ -234,12 +237,15 @@ onShareTimeline(() => ({
 .detail {
   min-height: 100vh;
   padding-bottom: 60rpx;
+  background-color: var(--page-bg);
+  /* 阻断首个子元素的上外边距逃逸出本容器，否则页面顶部会露出底层画布 */
+  overflow: hidden;
 }
 
 .tip {
   margin-top: 12rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
   text-align: center;
 }
 
@@ -254,27 +260,27 @@ onShareTimeline(() => ({
   margin-right: 16rpx;
   font-size: 34rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .desc {
   margin-top: 16rpx;
   font-size: 26rpx;
-  color: #646a73;
+  color: var(--text-secondary);
 }
 
 .time {
   margin-top: 16rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .voted-tip {
   margin-top: 16rpx;
   padding: 12rpx 16rpx;
   font-size: 24rpx;
-  color: #07c160;
-  background-color: #e8f8ef;
+  color: var(--brand);
+  background-color: var(--brand-bg);
   border-radius: 8rpx;
 }
 
@@ -287,21 +293,21 @@ onShareTimeline(() => ({
   flex: 1;
   margin-right: 16rpx;
   font-size: 30rpx;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .q-required {
   padding: 4rpx 12rpx;
   font-size: 22rpx;
-  color: #ff4d4f;
-  background-color: #ffeceb;
+  color: var(--danger);
+  background-color: var(--danger-bg);
   border-radius: 8rpx;
 }
 
 .q-type {
   margin-top: 12rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .options {
@@ -312,8 +318,8 @@ onShareTimeline(() => ({
   padding: 16rpx 20rpx;
   margin-bottom: 12rpx;
   font-size: 26rpx;
-  color: #646a73;
-  background-color: #f7f8fa;
+  color: var(--text-secondary);
+  background-color: var(--block-bg);
   border-radius: 12rpx;
 }
 
@@ -329,8 +335,8 @@ onShareTimeline(() => ({
 }
 
 .btn-disabled {
-  background-color: #e5e6eb;
-  color: #a9aeb8;
+  background-color: var(--border-strong);
+  color: var(--text-disabled);
   text-align: center;
 }
 </style>

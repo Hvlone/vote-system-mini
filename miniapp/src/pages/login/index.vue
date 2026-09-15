@@ -1,5 +1,5 @@
 <template>
-  <view class="login">
+  <view class="login" :class="{ 'theme-dark': theme.dark }">
     <view class="brand">
       <view class="brand-title">线上投票</view>
       <view class="brand-sub">创建活动 · 分享参与 · 实时统计</view>
@@ -43,7 +43,9 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { login } from '../../api/auth'
+import { useTheme } from '../../utils/theme'
 
+const theme = useTheme()
 const nickname = ref('')
 const debugCode = ref('')
 const logining = ref(false)
@@ -138,6 +140,7 @@ onLoad((query) => {
 .login {
   min-height: 100vh;
   padding-top: 120rpx;
+  background-color: var(--page-bg);
 }
 
 .brand {
@@ -147,13 +150,13 @@ onLoad((query) => {
 .brand-title {
   font-size: 52rpx;
   font-weight: bold;
-  color: #1f2329;
+  color: var(--text-primary);
 }
 
 .brand-sub {
   margin-top: 16rpx;
   font-size: 26rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .field {
@@ -164,20 +167,21 @@ onLoad((query) => {
   display: block;
   margin-bottom: 16rpx;
   font-size: 26rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .field-input {
   height: 84rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  background-color: #f7f8fa;
+  color: var(--text-primary);
+  background-color: var(--block-bg);
   border-radius: 12rpx;
   box-sizing: border-box;
 }
 
 .ph {
-  color: #c0c4cc;
+  color: var(--text-placeholder);
 }
 
 .login-btn {
@@ -187,13 +191,13 @@ onLoad((query) => {
 .debug {
   margin-top: 48rpx;
   padding-top: 32rpx;
-  border-top: 1rpx solid #f0f1f3;
+  border-top: 1rpx solid var(--border-color);
 }
 
 .debug-title {
   margin-bottom: 16rpx;
   font-size: 24rpx;
-  color: #8a8f99;
+  color: var(--text-tertiary);
 }
 
 .debug-row {
