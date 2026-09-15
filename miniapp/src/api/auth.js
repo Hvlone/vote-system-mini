@@ -12,7 +12,4 @@ import { request } from '../utils/request'
 export const login = (data) =>
   request({ url: '/auth/login', method: 'POST', data, auth: false })
 
-/**
- * 退出登录：后端无状态，仅清 ThreadLocal，前端必须自行清理 storage
- */
-export const logout = () => request({ url: '/auth/logout', method: 'POST' })
+// 无 logout 接口：JWT 无状态，后端无法作废 token，退出登录由页面清本地 storage 完成

@@ -54,7 +54,6 @@
 import { ref, computed } from 'vue'
 import { onReachBottom, onShow } from '@dcloudio/uni-app'
 import { getMyRecords } from '../../api/vote'
-import { logout } from '../../api/auth'
 import { formatDateTime } from '../../utils/datetime'
 import { setDark, useTheme } from '../../utils/theme'
 
@@ -124,14 +123,9 @@ function handleLogout() {
   uni.showModal({
     title: '退出登录',
     content: '确定退出当前账号？',
-    success: async (res) => {
+    success: (res) => {
       if (!res.confirm) return
-      try {
-        // 后端无状态，仅清 ThreadLocal；失败也要继续清本地登录态
-        await logout()
-      } catch (e) {
-        // 忽略：本地登录态下面统一清理
-      }
+      // JWT 无状态、后端无 logout 接口，登出即清本地登录态
       uni.removeStorageSync('token')
       uni.removeStorageSync('userInfo')
       uni.reLaunch({ url: '/pages/login/index' })
