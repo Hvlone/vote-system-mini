@@ -7,8 +7,20 @@
  *   ③ 成功：HTTP 200 + body.code = 200
  */
 
-// 接口基址：小程序开发期直连本机后端（需在开发者工具中勾选"不校验合法域名"）
-const BASE_URL = 'http://localhost:8080/api/v1'
+// 兜底基址：仅当环境变量缺失时使用，正常开发/生产都应由 .env 文件提供
+const FALLBACK_BASE_URL = 'http://localhost:8080/api/v1'
+
+// 接口基址：由环境变量注入，随构建环境切换
+//   开发（npm run dev:*）    → .env 的 VITE_API_BASE，默认本机后端
+//   生产（npm run build:*）  → .env.production 的 VITE_API_BASE，须为已备案的 HTTPS 域名
+const BASE_URL = import.meta.env.VITE_API_BASE || FALLBACK_BASE_URL
+
+// 生产构建漏配时明确告警：否则会静默打到本机地址，真机上只表现为"网络异常"，难以排查
+// 注：这里用 process.env.NODE_ENV 而非 import.meta.env.PROD —— 后者在 uni 的小程序构建链中
+//     不会被替换为 true，条件恒为假，整段会被摇树删掉
+if (process.env.NODE_ENV === 'production' && BASE_URL === FALLBACK_BASE_URL) {
+  console.error('[request] 未配置 VITE_API_BASE，已回退到 ' + FALLBACK_BASE_URL + '，请检查 .env.production')
+}
 
 // 401 并发去重：多个请求同时失效时只跳转一次登录页
 let redirectingToLogin = false

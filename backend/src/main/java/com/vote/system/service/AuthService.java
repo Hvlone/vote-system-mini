@@ -1,11 +1,11 @@
 package com.vote.system.service;
 
-import com.vote.system.common.BusinessException;
 import com.vote.system.dto.LoginDTO;
 import com.vote.system.dto.LoginVO;
 import com.vote.system.entity.User;
 import com.vote.system.mapper.UserMapper;
 import com.vote.system.util.JwtUtil;
+import com.vote.system.util.WechatUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,9 +17,10 @@ public class AuthService {
 
     private final UserMapper userMapper;
     private final JwtUtil jwtUtil;
+    private final WechatUtil wechatUtil;
 
     public LoginVO login(LoginDTO dto) {
-        String openid = resolveOpenid(dto.getCode());
+        String openid = wechatUtil.resolveOpenid(dto.getCode());
 
         User user = userMapper.selectByOpenid(openid);
         if (user == null) {
@@ -49,24 +50,5 @@ public class AuthService {
 
         String token = jwtUtil.generate(user.getId(), user.getOpenid(), user.getRole());
         return new LoginVO(token, user.getId(), user.getOpenid(), user.getRole(), user.getNickname());
-    }
-
-    /**
-     * 解析 openid
-     * 开发模式：code 以 "test_" 开头，直接取后段当 openid（不调微信接口）
-     * 生产模式：调微信 code2session 接口换 openid
-     */
-    private String resolveOpenid(String code) {
-        if (code == null || code.isBlank()) {
-            throw BusinessException.badRequest("code不能为空");
-        }
-        if (code.startsWith("test_")) {
-            return code.substring(5);
-        }
-        // 生产模式：取消下方注释并配置 appId/secret
-        // String url = "https://api.weixin.qq.com/sns/jscode2session?appid=APP_ID&secret=APP_SECRET&js_code=" + code + "&grant_type=authorization_code";
-        // JSONObject resp = RestTemplate.getForObject(url, JSONObject.class);
-        // return resp.getString("openid");
-        return code;
     }
 }
