@@ -22,7 +22,7 @@
 
     <view class="section-head">
       <text class="section-title">我参与的投票</text>
-      <text v-if="records.length" class="section-sub">共 {{ records.length }} 条</text>
+      <text v-if="total" class="section-sub">共 {{ total }} 条</text>
     </view>
 
     <view v-if="loading" class="tip">加载中...</view>
@@ -40,6 +40,8 @@
         </view>
         <view class="record-time">提交于 {{ formatDateTime(item.submittedAt) }}</view>
       </view>
+      <view v-if="loadingMore" class="tip">加载中...</view>
+      <view v-else-if="!hasMore" class="tip">没有更多了</view>
     </view>
 
     <view class="logout-row">
@@ -50,7 +52,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onReachBottom, onShow } from '@dcloudio/uni-app'
 import { getMyRecords } from '../../api/vote'
 import { logout } from '../../api/auth'
 import { formatDateTime } from '../../utils/datetime'
@@ -58,8 +60,15 @@ import { setDark, useTheme } from '../../utils/theme'
 
 const theme = useTheme()
 const records = ref([])
+const total = ref(0)
 const loading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(false)
+const page = ref(1)
 const nickname = ref('')
+
+/** 每页条数，与后端默认值一致（后台上限 50） */
+const PAGE_SIZE = 20
 
 // 后端无头像字段（登录仅回传 nickname），用昵称首字作默认头像
 const avatarText = computed(() => (nickname.value ? nickname.value.charAt(0) : '我'))
@@ -69,16 +78,36 @@ function onThemeChange(e) {
   setDark(e.detail.value)
 }
 
-/** 拉取「我参与过的投票」（含 voteTitle；后端无分页，一次性返回） */
-async function loadRecords() {
-  loading.value = true
+/**
+ * 拉取「我参与过的投票」（含 voteTitle，后端分页）
+ * @param {Boolean} reset true=回到第 1 页重新加载（onShow 刷新用）；false=追加下一页
+ */
+async function loadRecords(reset = true) {
+  if (reset) {
+    page.value = 1
+    loading.value = true
+  } else {
+    // 正在加载或已无下一页时不再重复请求
+    if (loadingMore.value || !hasMore.value) return
+    loadingMore.value = true
+  }
   try {
-    const data = await getMyRecords()
-    records.value = data || []
+    const data = await getMyRecords(page.value, PAGE_SIZE)
+    const list = (data && data.list) || []
+    records.value = reset ? list : records.value.concat(list)
+    total.value = (data && data.total) || 0
+    hasMore.value = !!(data && data.hasMore)
+    // 确认还有下一页才推进页码，避免请求异常后页码空跳导致漏数据
+    if (hasMore.value) page.value += 1
   } catch (e) {
-    records.value = []
+    if (reset) {
+      records.value = []
+      total.value = 0
+      hasMore.value = false
+    }
   } finally {
     loading.value = false
+    loadingMore.value = false
   }
 }
 
@@ -110,11 +139,16 @@ function handleLogout() {
   })
 }
 
-// 用 onShow：从创建页返回时需刷新「我参与的投票」（可能已新增记录）
+// 用 onShow：从创建页返回时需刷新「我参与的投票」（可能已新增记录），回到第 1 页重取
 onShow(() => {
   const info = uni.getStorageSync('userInfo')
   nickname.value = (info && info.nickname) || ''
   loadRecords()
+})
+
+// 触底加载下一页（已无更多时 loadRecords 内部会直接返回）
+onReachBottom(() => {
+  loadRecords(false)
 })
 </script>
 

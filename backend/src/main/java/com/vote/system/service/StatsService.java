@@ -3,6 +3,7 @@ package com.vote.system.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vote.system.common.BusinessException;
+import com.vote.system.dto.PageVO;
 import com.vote.system.dto.StatsVO;
 import com.vote.system.entity.*;
 import com.vote.system.mapper.*;
@@ -24,6 +25,9 @@ public class StatsService {
     private final ObjectMapper objectMapper;
 
     private static final int PAGE_SIZE = 20;
+
+    /** 每页条数上限，防止一次拉取过多 */
+    private static final int MAX_PAGE_SIZE = 50;
 
     /**
      * 统计：总数 + 各题选项占比（仅创建者可看）
@@ -120,12 +124,21 @@ public class StatsService {
     }
 
     /**
-     * 我的投票记录（附投票标题，避免前端逐条二次查询）
+     * 我的投票记录（附投票标题，避免前端逐条二次查询），分页返回
+     * @param page 页码，从 1 开始
+     * @param size 每页条数，上限 MAX_PAGE_SIZE
      */
-    public List<VoteRecord> getMyRecords(String openid) {
-        List<VoteRecord> records = voteRecordMapper.selectByOpenid(openid);
+    public PageVO<VoteRecord> getMyRecords(String openid, int page, int size) {
+        if (page < 1) {
+            throw BusinessException.badRequest("页码必须大于等于1");
+        }
+        if (size < 1 || size > MAX_PAGE_SIZE) {
+            throw BusinessException.badRequest("每页条数需在1~" + MAX_PAGE_SIZE + "之间");
+        }
+        long total = voteRecordMapper.countByOpenid(openid);
+        List<VoteRecord> records = voteRecordMapper.selectByOpenid(openid, (page - 1) * size, size);
         fillVoteTitle(records);
-        return records;
+        return PageVO.of(records, total, page, size);
     }
 
     /**

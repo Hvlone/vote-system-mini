@@ -22,8 +22,14 @@ public interface VoteRecordMapper {
             "LIMIT #{offset}, #{limit}")
     List<VoteRecord> selectByVoteId(@Param("voteId") Long voteId, @Param("offset") int offset, @Param("limit") int limit);
 
-    @Select("SELECT * FROM vote_record WHERE openid = #{openid} ORDER BY submitted_at DESC")
-    List<VoteRecord> selectByOpenid(String openid);
+    @Select("SELECT COUNT(*) FROM vote_record WHERE openid = #{openid}")
+    long countByOpenid(String openid);
+
+    @Select("SELECT * FROM vote_record WHERE openid = #{openid} ORDER BY submitted_at DESC " +
+            "LIMIT #{offset}, #{limit}")
+    List<VoteRecord> selectByOpenid(@Param("openid") String openid,
+                                    @Param("offset") int offset,
+                                    @Param("limit") int limit);
 
     @Delete("DELETE FROM vote_record WHERE vote_id = #{voteId}")
     int deleteByVoteId(Long voteId);

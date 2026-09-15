@@ -2,6 +2,7 @@ package com.vote.system.controller;
 
 import com.vote.system.common.Result;
 import com.vote.system.common.UserContext;
+import com.vote.system.dto.PageVO;
 import com.vote.system.dto.StatsVO;
 import com.vote.system.entity.VoteRecord;
 import com.vote.system.service.StatsService;
@@ -29,7 +30,8 @@ public class StatsController {
     }
 
     @GetMapping("/my/records")
-    public Result<List<VoteRecord>> myRecords() {
-        return Result.ok(statsService.getMyRecords(UserContext.getOpenid()));
+    public Result<PageVO<VoteRecord>> myRecords(@RequestParam(defaultValue = "1") int page,
+                                                @RequestParam(defaultValue = "20") int size) {
+        return Result.ok(statsService.getMyRecords(UserContext.getOpenid(), page, size));
     }
 }

@@ -37,5 +37,11 @@ export const deleteVote = (id) => request({ url: `/votes/${id}`, method: 'DELETE
 export const submitVote = (id, answers) =>
   request({ url: `/votes/${id}/submit`, method: 'POST', data: { answers } })
 
-/** 我参与过的投票记录（含 voteTitle，无分页） */
-export const getMyRecords = () => request({ url: '/my/records' })
+/**
+ * 我参与过的投票记录（含 voteTitle，分页）
+ * @param {Number} page 页码，从 1 开始
+ * @param {Number} size 每页条数，默认 20，上限 50
+ * @returns {Promise<{list: Array, total: Number, page: Number, size: Number, hasMore: Boolean}>}
+ */
+export const getMyRecords = (page = 1, size = 20) =>
+  request({ url: `/my/records?page=${page}&size=${size}` })
