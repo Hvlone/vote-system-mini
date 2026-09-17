@@ -1,5 +1,7 @@
 package com.vote.system.util;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vote.system.common.BusinessException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,14 +39,17 @@ public class WechatUtil {
     private final String secret;
     private final boolean debugLoginEnabled;
     private final RestClient restClient;
+    private final ObjectMapper objectMapper;
 
     public WechatUtil(@Value("${wechat.appid:}") String appid,
                       @Value("${wechat.secret:}") String secret,
                       @Value("${wechat.debug-login-enabled:false}") boolean debugLoginEnabled,
-                      RestClient.Builder restClientBuilder) {
+                      RestClient.Builder restClientBuilder,
+                      ObjectMapper objectMapper) {
         this.appid = appid;
         this.secret = secret;
         this.debugLoginEnabled = debugLoginEnabled;
+        this.objectMapper = objectMapper;
         // 连接 3s / 读取 5s：微信接口不可用时快速失败，避免登录请求长时间挂起
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build());
@@ -73,18 +78,28 @@ public class WechatUtil {
         if (appid == null || appid.isBlank() || secret == null || secret.isBlank()) {
             throw new BusinessException(500, "服务端未配置微信登录参数(wechat.appid / wechat.secret)");
         }
-        Code2SessionResp resp;
+        String body;
         try {
-            resp = restClient.get()
+            // 微信 code2session 响应的 Content-Type 是 text/plain（body 为 JSON 文本），
+            // 直接 .body(Code2SessionResp.class) 会因找不到 text/plain 的转换器而失败，
+            // 故先取字符串再用 Jackson 反序列化（对 application/json 响应同样兼容）。
+            body = restClient.get()
                     .uri(CODE2SESSION_URL, appid, secret, code)
                     .retrieve()
-                    .body(Code2SessionResp.class);
+                    .body(String.class);
         } catch (Exception e) {
             log.error("调用微信 code2session 失败: {}", e.getMessage());
             throw new BusinessException(500, "微信登录服务暂不可用，请稍后重试");
         }
-        if (resp == null) {
+        if (body == null || body.isBlank()) {
             throw new BusinessException(500, "微信登录失败: 接口无响应");
+        }
+        Code2SessionResp resp;
+        try {
+            resp = objectMapper.readValue(body, Code2SessionResp.class);
+        } catch (JsonProcessingException e) {
+            log.error("解析微信 code2session 响应失败，原始响应: {}", body);
+            throw new BusinessException(500, "微信登录失败: 返回数据格式异常");
         }
         // 微信约定：成功时不返回 errcode，失败时返回非 0 的 errcode
         if (resp.errcode() != null && resp.errcode() != 0) {
