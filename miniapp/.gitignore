@@ -8,3 +8,6 @@ unpackage/
 # 本地日志与临时文件
 *.log
 .hbuilderx/
+
+# 本地环境覆盖（真机联调用局域网地址，不入库）
+.env.local
