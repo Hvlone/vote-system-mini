@@ -36,5 +36,13 @@ miniapp/node_modules/
 miniapp-hbuilder/
 miniapp-hbuilder-v2/
 
+# 本地工具与交接文档（不入库）
+.trae/
+/【任务交接 prompt*.txt
+# 本地归档的说明类文档（重组后仅本地保留；内含 .docx，*.md 规则覆盖不到）
+/实现文档/
+
 # 说明类文档（GitHub 仅上传代码；个别需上传时用 git add -f）
 *.md
+# 例外：README 作为仓库门面正常入库
+!README.md
