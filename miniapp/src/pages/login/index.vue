@@ -21,7 +21,8 @@
         {{ logining ? '登录中...' : '微信一键登录' }}
       </button>
 
-      <view class="debug">
+      <!-- 调试登录入口：仅本地开发构建可见，生产构建（build:h5 / build:mp-weixin）自动隐藏 -->
+      <view v-if="showDebugLogin" class="debug">
         <view class="debug-title">调试登录（本地联调：code 以 test_ 开头）</view>
         <view class="debug-row">
           <input
@@ -49,6 +50,8 @@ const theme = useTheme()
 const nickname = ref('')
 const debugCode = ref('')
 const logining = ref(false)
+// 是否展示调试登录入口：仅本地开发（dev:h5 / dev:mp-weixin）显示，生产构建隐藏
+const showDebugLogin = process.env.NODE_ENV !== 'production'
 // 登录成功后的回跳地址（如从答题页跳来时带入），为空则进列表页
 const redirect = ref('')
 
@@ -112,7 +115,11 @@ function handleWxLogin() {
       doLogin(res.code)
     },
     fail: () => {
-      uni.showToast({ title: '当前环境不支持微信登录，请使用调试登录', icon: 'none' })
+      // 生产构建下调试入口已隐藏，故不再提示「请使用调试登录」
+      uni.showToast({
+        title: showDebugLogin ? '当前环境不支持微信登录，请使用调试登录' : '当前环境不支持微信登录',
+        icon: 'none'
+      })
     }
   })
 }
