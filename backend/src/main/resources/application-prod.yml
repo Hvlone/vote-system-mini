@@ -1,0 +1,44 @@
+# 生产环境配置（进版本库）
+#
+# 重要：本文件不含任何真实密钥，所有敏感项一律由环境变量注入；
+#       真实值只写在服务器侧 /etc/vote-system/vote-system.env（600 权限，不入库）。
+#
+# 环境变量清单（变量含义与取值方式见 application-prod.example.yml）：
+#   DB_URL / DB_USERNAME / DB_PASSWORD
+#   JWT_SECRET        必填，本文件不设默认值，缺失则应用启动失败
+#   IP_TRUST_PROXIES  走 Nginx 反向代理时为 true，直连保持 false
+#   WECHAT_APPID / WECHAT_SECRET
+server:
+  port: 8080
+
+spring:
+  application:
+    name: vote-system-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 数据库与后端同机时保持 useSSL=false；跨机请改用 useSSL=true
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+# JWT：密钥必须由环境变量注入，不设默认值，未注入直接启动失败（避免误用开发默认密钥上线）
+jwt:
+  secret: ${JWT_SECRET}
+  expire-hours: 2
+
+# IP 获取：经 Nginx 等反向代理时必须置为 true，且代理要覆盖 X-Forwarded-For/X-Real-IP，
+# 否则限流会把所有请求都记成代理 IP；直连部署保持 false，避免客户端伪造请求头绕过限流
+ip:
+  trust-proxies: ${IP_TRUST_PROXIES:false}
+
+# 微信小程序登录
+wechat:
+  # 未注入时登录接口会明确报「服务端未配置微信登录参数」，不影响其余接口
+  appid: ${WECHAT_APPID:}
+  secret: ${WECHAT_SECRET:}
+  # 生产强制关闭调试登录：test_ 前缀的 code 不再能直接换取登录态
+  debug-login-enabled: false

@@ -37,5 +37,5 @@ wechat:
   appid: ${WECHAT_APPID:}
   secret: ${WECHAT_SECRET:}
   # 调试登录：code 以 test_ 开头时直接取后段作为 openid（不调微信），仅供本地联调。
-  # 生产必须为 false（prod profile 已强制关闭；代码侧默认值同样是 false）
-  debug-login-enabled: ${WECHAT_DEBUG_LOGIN:true}
+  # 默认关闭（与生产一致，避免漏配时在生产开口子）；本地联调需显式注入 WECHAT_DEBUG_LOGIN=true
+  debug-login-enabled: ${WECHAT_DEBUG_LOGIN:false}

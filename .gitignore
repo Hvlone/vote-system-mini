@@ -22,8 +22,8 @@ mvnw.cmd
 # 日志
 *.log
 
-# 环境配置（含密码，不要上传）
-backend/src/main/resources/application-prod.yml
+# 环境配置：application-prod.yml 只含 ${} 占位符、零密钥，故正常入库；
+# 真实密钥一律只写在服务器侧 /etc/vote-system/vote-system.env，不落版本库
 
 # 临时测试文件
 *.json.bak
