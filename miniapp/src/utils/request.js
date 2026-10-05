@@ -15,7 +15,7 @@ const FALLBACK_BASE_URL = 'http://localhost:8080/api/v1'
 //   生产（npm run build:*）  → .env.production 的 VITE_API_BASE，须为已备案的 HTTPS 域名
 const BASE_URL = import.meta.env.VITE_API_BASE || FALLBACK_BASE_URL
 
-// 生产构建漏配时明确告警：否则会静默打到本机地址，真机上只表现为"网络异常"，难以排查
+// 生产构建漏配时明确告警：否则会静默打到本机地址，真机上只表现为"网络连接失败"，难以排查
 // 注：这里用 process.env.NODE_ENV 而非 import.meta.env.PROD —— 后者在 uni 的小程序构建链中
 //     不会被替换为 true，条件恒为假，整段会被摇树删掉
 if (process.env.NODE_ENV === 'production' && BASE_URL === FALLBACK_BASE_URL) {
@@ -37,6 +37,26 @@ function toLogin() {
       redirectingToLogin = false
     }
   })
+}
+
+/**
+ * 把 uni.request 的 errMsg 映射为面向用户的提示
+ *
+ * fail 回调只能拿到底层错误串（如 request:fail timeout），直接透出既不可读、
+ * 也会在真机上暴露实现细节；这里按错误串归为几类可行动提示。
+ * 注：不再统一提示"请检查后端服务是否已启动"——那是本机开发口径，
+ *     生产环境（已配置线上域名）下出现该文案会误导使用者。
+ * @param {Object} err uni.request 的失败对象
+ * @returns {String} 展示给用户的提示文案
+ */
+function resolveFailMessage(err) {
+  const errMsg = (err && err.errMsg) || ''
+  if (errMsg.indexOf('timeout') > -1) return '请求超时，请稍后重试'
+  if (errMsg.indexOf('abort') > -1) return '请求已取消'
+  // 域名未在微信后台配置白名单（真机严格校验，模拟器因 urlCheck=false 不报）
+  if (errMsg.indexOf('url not in domain list') > -1) return '服务地址未配置，请联系管理员'
+  // 其余（无网络 / DNS 失败 / 连接被拒 / ERR_CONNECTION_* 等）统一归为网络不可用
+  return '网络连接失败，请检查网络'
 }
 
 /**
@@ -89,10 +109,11 @@ export function request(options = {}) {
         reject({ code, message })
       },
       fail: (err) => {
+        const message = resolveFailMessage(err)
         if (!silent) {
-          uni.showToast({ title: '网络异常，请检查后端服务是否已启动', icon: 'none' })
+          uni.showToast({ title: message, icon: 'none' })
         }
-        reject({ code: -1, message: '网络异常', raw: err })
+        reject({ code: -1, message, raw: err })
       }
     })
   })
