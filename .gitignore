@@ -46,3 +46,6 @@ miniapp-hbuilder-v2/
 *.md
 # 例外：README 作为仓库门面正常入库
 !README.md
+
+# 小程序素材（图标等仅在微信公众平台「基本设置」上传，不入库）
+/小程序图标*.jpg
