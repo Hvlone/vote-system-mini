@@ -3,6 +3,7 @@ package com.vote.system.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vote.system.common.BusinessException;
+import com.vote.system.dto.MyAnswerVO;
 import com.vote.system.dto.PageVO;
 import com.vote.system.dto.StatsVO;
 import com.vote.system.entity.*;
@@ -139,6 +140,33 @@ public class StatsService {
         List<VoteRecord> records = voteRecordMapper.selectByOpenid(openid, (page - 1) * size, size);
         fillVoteTitle(records);
         return PageVO.of(records, total, page, size);
+    }
+
+    /**
+     * 取当前用户对某投票的作答明细（#13）。
+     *
+     * 无作答记录 = 该用户根本没参与过本次投票（正常 UI 路径下，"我的"页只会列出投过的活动，
+     * 不会进到这页），故按"记录不存在"处理（404），而不是返回空数组让前端渲染出一页诡异的空白。
+     * 注意：单道题未作答（选填未填 / 多选未勾）属**正常情况**——提交时只下发已作答的题，
+     * 这类"缺某题"由前端渲染"未作答"，不归本方法拦。
+     */
+    public List<MyAnswerVO> getMyRecord(Long voteId, String openid) {
+        Vote vote = voteMapper.selectById(voteId);
+        if (vote == null) {
+            throw BusinessException.notFound("投票活动不存在");
+        }
+        VoteRecord record = voteRecordMapper.selectByOpenidAndVoteId(openid, voteId);
+        if (record == null) {
+            throw BusinessException.notFound("未找到你的作答记录");
+        }
+        List<MyAnswerVO> list = new ArrayList<>();
+        for (Map<String, Object> a : parseAnswers(record.getAnswerContent())) {
+            MyAnswerVO vo = new MyAnswerVO();
+            vo.setQuestionId(toLong(a.get("questionId")));
+            vo.setAnswer(a.get("answer"));
+            list.add(vo);
+        }
+        return list;
     }
 
     /**

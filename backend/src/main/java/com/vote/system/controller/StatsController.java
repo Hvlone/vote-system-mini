@@ -2,6 +2,7 @@ package com.vote.system.controller;
 
 import com.vote.system.common.Result;
 import com.vote.system.common.UserContext;
+import com.vote.system.dto.MyAnswerVO;
 import com.vote.system.dto.PageVO;
 import com.vote.system.dto.StatsVO;
 import com.vote.system.entity.VoteRecord;
@@ -33,5 +34,11 @@ public class StatsController {
     public Result<PageVO<VoteRecord>> myRecords(@RequestParam(defaultValue = "1") int page,
                                                 @RequestParam(defaultValue = "20") int size) {
         return Result.ok(statsService.getMyRecords(UserContext.getOpenid(), page, size));
+    }
+
+    /** 我的作答（#13）：仅当前登录用户自己的作答；无作答记录返回 404（视为未参与） */
+    @GetMapping("/votes/{id}/my-record")
+    public Result<List<MyAnswerVO>> myRecord(@PathVariable Long id) {
+        return Result.ok(statsService.getMyRecord(id, UserContext.getOpenid()));
     }
 }
