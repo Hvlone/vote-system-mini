@@ -42,7 +42,12 @@
         <view class="card">
           <view class="section-head">
             <text class="section-title">提交明细</text>
-            <text class="section-sub">已加载 {{ details.length }} 条</text>
+            <view class="section-right">
+              <text class="section-sub">已加载 {{ details.length }} 条</text>
+              <text class="export-link" @click="handleExport">
+                {{ exporting ? '导出中...' : '导出' }}
+              </text>
+            </view>
           </view>
 
           <view v-if="!details.length" class="tip">暂无明细</view>
@@ -92,6 +97,7 @@ const loading = ref(true)
 const loadingMore = ref(false)
 const hasMore = ref(false)
 const page = ref(1)
+const exporting = ref(false)
 
 // 明细翻译映射：统计接口已带全部题干与选项文案，无需再拉一次详情
 let qTextMap = {}
@@ -139,7 +145,7 @@ function translate(content) {
     } else if (answer !== null && answer !== undefined) {
       text = oTextMap[answer] || String(answer)
     }
-    return { label: qTextMap[qid] || '题目#' + qid, text }
+    return { qid, label: qTextMap[qid] || '题目#' + qid, text }
   })
 }
 
@@ -163,6 +169,70 @@ async function loadDetails(reset) {
 function loadMore() {
   if (loadingMore.value || !hasMore.value) return
   loadDetails(false)
+}
+
+/** 拉取全量提交明细：/details 固定 20/页且无 total，只能以"返回条数 < 20"判定结束 */
+async function fetchAllDetails() {
+  const all = []
+  for (let p = 1; ; p++) {
+    const rows = (await getDetails(voteId.value, p)) || []
+    rows.forEach((r) => all.push({ ...r, answers: translate(r.answerContent) }))
+    if (rows.length < PAGE_SIZE) break
+  }
+  return all
+}
+
+/** CSV 单元格转义：含逗号/引号/换行时用双引号包裹，内部引号翻倍 */
+function csvCell(value) {
+  const text = value === null || value === undefined ? '' : String(value)
+  return /[",\r\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text
+}
+
+/** 生成 CSV：表头按统计接口的题目顺序展开，每行按 questionId 对齐取值 */
+function buildCsv(rows) {
+  const questions = (stats.value && stats.value.questions) || []
+  const header = ['序号', '提交时间'].concat(questions.map((q) => q.questionText))
+  const lines = [header.map(csvCell).join(',')]
+  rows.forEach((row, index) => {
+    const byQid = {}
+    ;(row.answers || []).forEach((a) => {
+      byQid[a.qid] = a.text
+    })
+    const cells = [String(index + 1), formatDateTime(row.submittedAt)].concat(
+      questions.map((q) => byQid[q.questionId] || '')
+    )
+    lines.push(cells.map(csvCell).join(','))
+  })
+  return lines.join('\r\n')
+}
+
+/** 导出（Q11）：纯前端拉全量明细 → 生成 CSV → 复制到剪贴板，用户自行粘贴到表格 */
+async function handleExport() {
+  if (exporting.value) return
+  exporting.value = true
+  uni.showLoading({ title: '导出中...', mask: true })
+  try {
+    const rows = await fetchAllDetails()
+    // 前置 BOM：让 Excel 按 UTF-8 解析，中文不乱码
+    const csv = '\ufeff' + buildCsv(rows)
+    uni.hideLoading()
+    uni.setClipboardData({
+      data: csv,
+      success: () => {
+        // setClipboardData 自带"已复制"轻提示，这里改用弹窗说明后续操作步骤
+        uni.showModal({
+          title: '导出完成',
+          content: `已复制 ${rows.length} 条提交明细（CSV）。打开 Excel / 表格，在 A1 单元格粘贴即可。`,
+          showCancel: false
+        })
+      }
+    })
+  } catch (e) {
+    // 失败提示已由 request.js 统一弹出
+  } finally {
+    uni.hideLoading()
+    exporting.value = false
+  }
 }
 
 async function loadStats() {
@@ -338,6 +408,20 @@ onLoad((query) => {
 .section-sub {
   font-size: 24rpx;
   color: var(--text-tertiary);
+}
+
+.section-right {
+  display: flex;
+  align-items: center;
+}
+
+.export-link {
+  margin-left: 20rpx;
+  padding: 4rpx 20rpx;
+  font-size: 24rpx;
+  color: var(--brand);
+  border: 1rpx solid var(--brand);
+  border-radius: 100rpx;
 }
 
 .record {
