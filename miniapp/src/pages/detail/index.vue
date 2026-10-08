@@ -29,44 +29,37 @@
       </view>
 
       <view class="footer">
-        <!-- 管理视角（草稿）：编辑 / 发布 -->
-        <block v-if="isManage && vote.status === 0">
+        <!-- 管理视角（草稿）：编辑 / 发布 并列 -->
+        <view v-if="isManage && vote.status === VOTE_STATUS.DRAFT" class="footer-inline">
           <button class="btn btn-plain footer-btn" @click="goEdit">编辑</button>
           <button class="btn btn-primary footer-btn" @click="handlePublish">发布</button>
+        </view>
+
+        <!-- 管理视角（发布中）：去投票 / 分享 / 停止 三行（「编辑」随 P1 的改截止时间一起加入第三行） -->
+        <block v-else-if="isManage && vote.status === VOTE_STATUS.PUBLISHED">
+          <button class="btn btn-primary footer-row" @click="goAnswer">去投票</button>
+          <!-- #ifdef MP-WEIXIN -->
+          <button class="btn btn-plain footer-row" open-type="share">分享</button>
+          <!-- #endif -->
+          <button class="btn btn-plain footer-row" @click="handleStop">停止</button>
         </block>
 
-        <!-- 管理视角（发布中）：停止 -->
-        <button
-          v-else-if="isManage && vote.status === 1"
-          class="btn btn-primary footer-btn"
-          @click="handleStop"
-        >
-          停止投票
-        </button>
-
-        <!-- 管理视角（非草稿）：查看统计 -->
-        <button
-          v-if="isManage && vote.status !== 0"
-          class="btn btn-plain footer-btn"
-          @click="goStats"
-        >
-          查看统计
-        </button>
-
-        <!-- 参与入口：进行中且未投过 -->
-        <button v-if="canParticipate" class="btn btn-primary footer-btn" @click="goAnswer">
-          去投票
-        </button>
-
-        <!-- 不可参与：置灰文案（草稿由上面的管理按钮承担，不显示文案） -->
-        <view v-else-if="disabledText" class="btn btn-disabled footer-btn">{{ disabledText }}</view>
-
-        <!-- 转发分享入口：仅小程序端渲染（open-type=share 依赖微信环境）；草稿对外 404，不给分享入口 -->
-        <!-- #ifdef MP-WEIXIN -->
-        <button v-if="vote.status !== 0" class="btn btn-plain footer-btn" open-type="share">
-          分享给好友
-        </button>
-        <!-- #endif -->
+        <!-- 公开视角：参与入口 + 分享（草稿对外 404，不给分享入口） -->
+        <template v-else>
+          <button v-if="canParticipate" class="btn btn-primary footer-row" @click="goAnswer">
+            去投票
+          </button>
+          <view v-else-if="disabledText" class="btn btn-disabled footer-row">{{ disabledText }}</view>
+          <!-- #ifdef MP-WEIXIN -->
+          <button
+            v-if="vote.status !== VOTE_STATUS.DRAFT"
+            class="btn btn-plain footer-row"
+            open-type="share"
+          >
+            分享给好友
+          </button>
+          <!-- #endif -->
+        </template>
       </view>
     </block>
   </view>
@@ -79,6 +72,7 @@ import { getVoteDetail, getVisibleVote, publishVote, stopVote } from '../../api/
 import { formatDateTime } from '../../utils/datetime'
 import {
   VOTE_STATE,
+  VOTE_STATUS,
   voteState,
   voteStateText,
   voteStateClass,
@@ -111,7 +105,7 @@ const canParticipate = computed(() => {
 /** 不可参与时的置灰文案（草稿由管理按钮承担，不显示文案） */
 const disabledText = computed(() => {
   if (!vote.value) return ''
-  if (vote.value.status === 0) return ''
+  if (vote.value.status === VOTE_STATUS.DRAFT) return ''
   if (vote.value.hasVoted === true) return '已投票'
   const state = voteState(vote.value)
   if (state === VOTE_STATE.NOT_STARTED) return '未开始'
@@ -128,7 +122,7 @@ async function loadVote() {
       : await getVisibleVote(voteId.value)
     // #ifdef MP-WEIXIN
     // 草稿对外一律 404，隐藏转发菜单避免分享出打不开的链接
-    if (vote.value && vote.value.status === 0) {
+    if (vote.value && vote.value.status === VOTE_STATUS.DRAFT) {
       uni.hideShareMenu()
     }
     // #endif
@@ -149,15 +143,10 @@ function goAnswer() {
   uni.navigateTo({ url: `/pages/answer/index?id=${voteId.value}` })
 }
 
-/** 查看统计：仅创建者可见（后端对非创建者返回 403） */
-function goStats() {
-  uni.navigateTo({ url: `/pages/stats/index?id=${voteId.value}` })
-}
-
 function handlePublish() {
   uni.showModal({
     title: '发布投票',
-    content: `确定发布「${vote.value.title}」？发布后不可再编辑。`,
+    content: `确定发布「${vote.value.title}」？发布后题目不可再修改。`,
     success: async (res) => {
       if (!res.confirm) return
       try {
@@ -188,9 +177,19 @@ function handleStop() {
   })
 }
 
+// 朋友圈分享（#3 补救）：微信不允许改写朋友圈的落地页，只能带 query 标记，
+// 本页识别到标记后立即中转答题页，使朋友圈渠道也能直达填写页
+let redirectToAnswer = false
+
 onLoad((query) => {
   voteId.value = query && query.id
   isManage.value = !!(query && query.mode === 'manage')
+  // #ifdef MP-WEIXIN
+  if (query && query.from === 'timeline') {
+    redirectToAnswer = true
+    uni.redirectTo({ url: `/pages/answer/index?id=${query.id}` })
+  }
+  // #endif
 })
 
 /** 登录守卫：投票详情需登录后才能浏览；未登录则跳登录页并带回跳地址 */
@@ -203,6 +202,8 @@ function ensureLogin() {
 
 // 用 onShow：从编辑页返回时需要重新拉取最新内容；登录回跳后也走这里
 onShow(() => {
+  // 已中转答题页，本页即将被替换，不再拉取详情
+  if (redirectToAnswer) return
   if (!voteId.value) {
     uni.showToast({ title: '缺少活动 id', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 800)
@@ -219,16 +220,16 @@ function shareTitle() {
 }
 
 // #ifdef MP-WEIXIN
-/** 转发给好友：路径固定为分享视角（不带 mode=manage），对方点开即公开详情 */
+/** 转发给好友：直达填写投票页（#3），对方点开即进入答题，不再经过详情页 */
 onShareAppMessage(() => ({
   title: shareTitle(),
-  path: `/pages/detail/index?id=${voteId.value}`
+  path: `/pages/answer/index?id=${voteId.value}`
 }))
 
-/** 分享到朋友圈：朋友圈入口用 query（而非 path），页面路径由微信补全 */
+/** 分享到朋友圈：朋友圈入口只支持 query，落地页恒为当前页（微信限制），故带标记让本页再把访客转到答题页 */
 onShareTimeline(() => ({
   title: shareTitle(),
-  query: `id=${voteId.value}`
+  query: `id=${voteId.value}&from=timeline`
 }))
 // #endif
 </script>
@@ -325,8 +326,25 @@ onShareTimeline(() => ({
 
 .footer {
   display: flex;
+  flex-direction: column;
   margin-top: 40rpx;
   padding: 0 24rpx;
+}
+
+/* 草稿态：编辑 / 发布 并列一行 */
+.footer-inline {
+  display: flex;
+  width: 100%;
+}
+
+/* 竖排按钮：整行，末个不留底边距 */
+.footer-row {
+  width: 100%;
+  margin-bottom: 16rpx;
+}
+
+.footer-row:last-child {
+  margin-bottom: 0;
 }
 
 .footer-btn {

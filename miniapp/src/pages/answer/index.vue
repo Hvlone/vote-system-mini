@@ -84,8 +84,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { ref, computed, watch } from 'vue'
+import { onLoad, onShow, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getVisibleVote, submitVote } from '../../api/vote'
 import { formatDateTime } from '../../utils/datetime'
 import {
@@ -126,6 +126,35 @@ const lockedText = computed(() => {
   if (state === VOTE_STATE.STOPPED) return '投票已结束'
   return '当前不可提交'
 })
+
+/** 是否已有作答内容（决定离开时是否需要确认） */
+const hasAnswer = computed(() => {
+  const map = answers.value || {}
+  return Object.keys(map).some((k) => {
+    const v = map[k]
+    return Array.isArray(v) ? v.length > 0 : !!(v && String(v).trim())
+  })
+})
+
+// #ifdef MP-WEIXIN
+// 离开确认：有作答内容时才启用。注意 wx.enableAlertBeforeUnload 只能拦住
+// 导航栏返回键与安卓物理返回键，iOS 手势侧滑拦不住（平台硬边界，见梳理稿 4.1）
+let unloadGuardOn = false
+watch(hasAnswer, (filled) => {
+  if (filled && !unloadGuardOn) {
+    wx.enableAlertBeforeUnload({ message: '离开后已填写的内容将不会保存，确定离开吗？' })
+    unloadGuardOn = true
+  } else if (!filled && unloadGuardOn) {
+    wx.disableAlertBeforeUnload()
+    unloadGuardOn = false
+  }
+})
+
+// 页面卸载兜底：拦截若仍开着，一并解除，避免影响其它页面
+onUnload(() => {
+  if (unloadGuardOn) wx.disableAlertBeforeUnload()
+})
+// #endif
 
 async function loadVote() {
   loading.value = true
@@ -254,9 +283,18 @@ async function doSubmit() {
   submitting.value = true
   try {
     await submitVote(voteId.value, buildAnswers())
-    uni.showToast({ title: '提交成功', icon: 'success' })
+    // #ifdef MP-WEIXIN
+    // 先解除离开拦截，避免随后的 reLaunch 触发"内容将丢失"确认框
+    if (unloadGuardOn) {
+      wx.disableAlertBeforeUnload()
+      unloadGuardOn = false
+    }
+    // #endif
     vote.value.hasVoted = true
     errorId.value = null
+    uni.showToast({ title: '提交成功', icon: 'success' })
+    // #5：提交成功回首页。参与者可能从分享直接进入（页面栈仅 1 层），故用 reLaunch
+    setTimeout(() => uni.reLaunch({ url: '/pages/list/index' }), 500)
   } catch (e) {
     // 400 / 429 的提示已由 request.js 统一弹出，停留本页即可
     // 409：已投过（含唯一索引兜底）→ 直接锁定页面
@@ -280,6 +318,26 @@ onShow(() => {
   if (!ensureLogin()) return
   loadVote()
 })
+
+/** 转发卡片标题：带前缀便于在会话列表里识别是投票活动 */
+function shareTitle() {
+  const title = vote.value && vote.value.title
+  return title ? `【投票】${title}` : '邀请你参与投票'
+}
+
+// #ifdef MP-WEIXIN
+/** 转发给好友：仍指向答题页，他人点开即直接填写（#3 分享直达） */
+onShareAppMessage(() => ({
+  title: shareTitle(),
+  path: `/pages/answer/index?id=${voteId.value}`
+}))
+
+/** 分享到朋友圈：从答题页发起时，朋友圈落地页即答题页（微信限制不能改写 path，故只在答题页保留） */
+onShareTimeline(() => ({
+  title: shareTitle(),
+  query: `id=${voteId.value}`
+}))
+// #endif
 </script>
 
 <style scoped>
