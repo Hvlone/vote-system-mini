@@ -49,3 +49,6 @@ export const submitVote = (id, answers) =>
  */
 export const getMyRecords = (page = 1, size = 20) =>
   request({ url: `/my/records?page=${page}&size=${size}` })
+
+/** 我的作答（#13）：仅自己可见；无作答记录时后端返回 404（视为未参与） */
+export const getMyRecord = (id) => request({ url: `/votes/${id}/my-record` })

@@ -114,9 +114,9 @@ function goCreate() {
   uni.navigateTo({ url: '/pages/create/index' })
 }
 
-/** 记录点击进详情：以参与者视角浏览（已提交会显示已投票态） */
+/** 记录点击进详情：以「我的作答」视角浏览（高亮自己提交的答案，底部无按钮） */
 function goDetail(item) {
-  uni.navigateTo({ url: `/pages/detail/index?id=${item.voteId}` })
+  uni.navigateTo({ url: `/pages/detail/index?id=${item.voteId}&mode=record` })
 }
 
 function handleLogout() {

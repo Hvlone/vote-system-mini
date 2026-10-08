@@ -23,12 +23,26 @@
         <view class="q-type">{{ typeLabel(q.questionType) }}</view>
 
         <view v-if="q.questionType !== QUESTION_TYPE.TEXT" class="options">
-          <view v-for="o in q.options" :key="o.id" class="option">{{ o.optionText }}</view>
+          <view
+            v-for="o in q.options"
+            :key="o.id"
+            class="option"
+            :class="{ 'option-picked': isRecord && isPicked(q, o) }"
+          >
+            {{ o.optionText }}
+            <text v-if="isRecord && isPicked(q, o)" class="option-mark">✓</text>
+          </view>
         </view>
-        <view v-else class="tip">填空题：由参与者自行填写文本</view>
+        <view v-else class="tip">
+          <block v-if="isRecord">
+            <text v-if="textAnswer(q)">我的作答：{{ textAnswer(q) }}</text>
+            <text v-else>这道题你未作答</text>
+          </block>
+          <text v-else>填空题：由参与者自行填写文本</text>
+        </view>
       </view>
 
-      <view class="footer">
+      <view v-if="!isRecord" class="footer">
         <!-- 管理视角（草稿）：编辑 / 发布 并列 -->
         <view v-if="isManage && vote.status === VOTE_STATUS.DRAFT" class="footer-inline">
           <button class="btn btn-plain footer-btn" @click="goEdit">编辑</button>
@@ -84,7 +98,8 @@ import {
   getVisibleVote,
   publishVote,
   stopVote,
-  updateEndTime
+  updateEndTime,
+  getMyRecord
 } from '../../api/vote'
 import { formatDateTime, toIso, parseDateTime } from '../../utils/datetime'
 import DateTimePopup from '../../components/DateTimePopup.vue'
@@ -105,8 +120,25 @@ const QUESTION_TYPE = { SINGLE: 1, MULTI: 2, TEXT: 3 }
 const voteId = ref(null)
 // manage：管理视角（从列表页进入，可读草稿）；public：分享 / 扫码视角（草稿不可见）
 const isManage = ref(false)
+// record：我的作答视角（#13，从「我的」页进入）——隐藏 footer、高亮自己提交的答案
+const isRecord = ref(false)
+const myAnswers = ref({}) // { [questionId]: answer }
 const vote = ref(null)
 const loading = ref(true)
+
+/** 是否选中该选项（单选：值相等；多选：数组包含） */
+function isPicked(question, option) {
+  const ans = myAnswers.value[question.id]
+  if (ans === undefined || ans === null) return false
+  if (Array.isArray(ans)) return ans.some((v) => String(v) === String(option.id))
+  return String(ans) === String(option.id)
+}
+
+/** 填空题的作答文本（未作答返回空串） */
+function textAnswer(question) {
+  const ans = myAnswers.value[question.id]
+  return ans === undefined || ans === null ? '' : String(ans)
+}
 
 function typeLabel(type) {
   if (type === QUESTION_TYPE.SINGLE) return '单选题'
@@ -135,9 +167,20 @@ const disabledText = computed(() => {
 async function loadVote() {
   loading.value = true
   try {
-    vote.value = isManage.value
-      ? await getVoteDetail(voteId.value)
-      : await getVisibleVote(voteId.value)
+    if (isRecord.value) {
+      // 我是参与者：走公开详情 + 我的作答（#13）
+      vote.value = await getVisibleVote(voteId.value)
+      const list = (await getMyRecord(voteId.value)) || []
+      const map = {}
+      list.forEach((a) => {
+        map[a.questionId] = a.answer
+      })
+      myAnswers.value = map
+    } else {
+      vote.value = isManage.value
+        ? await getVoteDetail(voteId.value)
+        : await getVisibleVote(voteId.value)
+    }
     // #ifdef MP-WEIXIN
     // 草稿对外一律 404，隐藏转发菜单避免分享出打不开的链接
     if (vote.value && vote.value.status === VOTE_STATUS.DRAFT) {
@@ -145,7 +188,7 @@ async function loadVote() {
     }
     // #endif
   } catch (e) {
-    // 404（不存在或草稿对外不可见）/ 403（非创建者）等失败提示已由 request.js 弹出
+    // 404（不存在 / 草稿对外不可见 / 我的作答无记录）/ 403（非创建者）等失败提示已由 request.js 弹出
     setTimeout(() => uni.navigateBack(), 900)
   } finally {
     loading.value = false
@@ -231,6 +274,7 @@ let redirectToAnswer = false
 onLoad((query) => {
   voteId.value = query && query.id
   isManage.value = !!(query && query.mode === 'manage')
+  isRecord.value = !!(query && query.mode === 'record')
   // #ifdef MP-WEIXIN
   if (query && query.from === 'timeline') {
     redirectToAnswer = true
@@ -403,5 +447,17 @@ onShareTimeline(() => ({
   background-color: var(--border-strong);
   color: var(--text-disabled);
   text-align: center;
+}
+
+/* 我的作答视角（#13）：高亮所选项 */
+.option-picked {
+  color: var(--brand);
+  background-color: var(--brand-bg);
+  border: 1rpx solid var(--brand);
+}
+
+.option-mark {
+  margin-left: 12rpx;
+  color: var(--brand);
 }
 </style>
