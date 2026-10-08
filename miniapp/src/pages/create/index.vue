@@ -26,7 +26,7 @@
 
     <view class="card">
       <view class="card-title">起止时间</view>
-      <view class="tip">留空则由后端补齐为「现在 ~ 7 天后」</view>
+      <view class="tip">留空则默认[ 现在 ~ 7天后 ]</view>
 
       <view class="time-row">
         <text class="time-label">开始</text>
@@ -40,7 +40,6 @@
             {{ startClock || '选择时间' }}
           </view>
         </picker>
-        <text class="time-clear" @click="clearStart">清空</text>
       </view>
 
       <view class="time-row">
@@ -55,7 +54,6 @@
             {{ endClock || '选择时间' }}
           </view>
         </picker>
-        <text class="time-clear" @click="clearEnd">清空</text>
       </view>
     </view>
 
@@ -117,18 +115,24 @@
     </view>
 
     <view class="footer">
-      <button class="btn btn-primary" :disabled="submitting" @click="handleSubmit">
-        {{ submitting ? '保存中...' : '保存为草稿' }}
+      <button class="btn btn-primary" :disabled="submitting" @click="handlePrimary">
+        {{ submitting ? '处理中...' : isEdit ? '发布' : '创建并发布' }}
       </button>
-      <view class="footer-tip">保存后为草稿状态，需在列表页发布后参与者才可填写</view>
+      <button class="btn btn-plain footer-second" :disabled="submitting" @click="handleSecondary">
+        {{ submitting ? '处理中...' : isEdit ? '保存修改' : '存为草稿' }}
+      </button>
+      <view class="footer-tip">
+        {{ isEdit ? '保存后仍为草稿，发布后参与者才可填写' : '存为草稿后需在草稿箱发布，参与者才可填写' }}
+      </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { createVote, editVote, getVoteDetail } from '../../api/vote'
+import { ref, computed, watch } from 'vue'
+import { onLoad, onUnload } from '@dcloudio/uni-app'
+import { createVote, editVote, publishVote, getVoteDetail } from '../../api/vote'
+import { VOTE_STATUS } from '../../utils/voteState'
 import { toIso, formatDateTime } from '../../utils/datetime'
 import { useTheme } from '../../utils/theme'
 
@@ -154,6 +158,66 @@ const endDate = ref('')
 const endClock = ref('')
 const questions = ref([])
 const submitting = ref(false)
+
+/** 编辑模式：带 id 进入即编辑已有草稿（按钮文案与提交行为随之切换） */
+const isEdit = computed(() => !!voteId.value)
+
+/**
+ * 表单快照：只取会影响后端的字段，并剔除本地 _key
+ * （_key 由 nextKey() 每次重新生成，不剔除会恒判为"已修改"）
+ */
+function snapshot() {
+  return JSON.stringify({
+    title: title.value,
+    description: description.value,
+    startDate: startDate.value,
+    startClock: startClock.value,
+    endDate: endDate.value,
+    endClock: endClock.value,
+    questions: questions.value.map((q) => ({
+      questionText: q.questionText,
+      questionType: q.questionType,
+      isRequired: q.isRequired,
+      options: q.options.map((o) => o.optionText)
+    }))
+  })
+}
+
+// 进入时的基线快照：新建模式在 onLoad 采；编辑模式在 loadForEdit 回填完成后采（该方法是异步的）
+const baseline = ref('')
+
+/** 是否有未保存的修改：与基线逐字段比较，改回原样即视为未修改（比"是否触碰过"更准） */
+const dirty = computed(() => !!baseline.value && snapshot() !== baseline.value)
+
+// #ifdef MP-WEIXIN
+// 离开确认（#10）：仅在确有修改时启用守卫，避免无修改时打扰。
+// 注意 wx.enableAlertBeforeUnload 只拦得住导航栏返回键与安卓物理返回键，iOS 手势侧滑拦不住（见 03 文档 B-1）
+let unloadGuardOn = false
+watch(dirty, (changed) => {
+  if (changed && !unloadGuardOn) {
+    wx.enableAlertBeforeUnload({ message: '离开后修改将丢失，确定离开吗？' })
+    unloadGuardOn = true
+  } else if (!changed && unloadGuardOn) {
+    wx.disableAlertBeforeUnload()
+    unloadGuardOn = false
+  }
+})
+
+// 页面卸载兜底：守卫若仍开着则解除，避免残留影响其它页面
+onUnload(() => {
+  releaseGuard()
+})
+// #endif
+
+/** 程序化退出（保存/发布/失败返回）前必须先解除守卫，否则跳转会被拦下；非小程序端为空实现 */
+function releaseGuard() {
+  // #ifdef MP-WEIXIN
+  if (unloadGuardOn) {
+    wx.disableAlertBeforeUnload()
+    unloadGuardOn = false
+  }
+  // #endif
+}
 
 /** 新建一个空题目 */
 function newQuestion() {
@@ -186,14 +250,6 @@ function onEndDateChange(e) {
 }
 function onEndClockChange(e) {
   endClock.value = e.detail.value
-}
-function clearStart() {
-  startDate.value = ''
-  startClock.value = ''
-}
-function clearEnd() {
-  endDate.value = ''
-  endClock.value = ''
 }
 
 function addQuestion() {
@@ -292,21 +348,56 @@ function buildPayload() {
   }
 }
 
-async function handleSubmit() {
-  if (submitting.value) return
-  if (!validate()) return
+/** 存草稿 / 保存修改：单段请求（新建时后端返回 voteId） */
+async function saveDraft() {
+  const payload = buildPayload()
+  if (voteId.value) {
+    await editVote(voteId.value, payload)
+    return voteId.value
+  }
+  return await createVote(payload)
+}
+
+/** 次按钮：存为草稿 / 保存修改 */
+async function handleSecondary() {
+  if (submitting.value || !validate()) return
   submitting.value = true
   try {
-    const payload = buildPayload()
-    if (voteId.value) {
-      await editVote(voteId.value, payload)
-    } else {
-      await createVote(payload)
-    }
-    uni.showToast({ title: '已保存为草稿', icon: 'success' })
+    await saveDraft()
+    releaseGuard()
+    uni.showToast({ title: isEdit.value ? '已保存' : '已存为草稿', icon: 'success' })
     setTimeout(() => uni.navigateBack(), 400)
   } catch (e) {
     // 失败提示已由 request.js 统一弹出
+  } finally {
+    submitting.value = false
+  }
+}
+
+/**
+ * 主按钮：创建并发布 / 发布
+ * 两段请求：① 先落草稿（新建 POST / 编辑 PUT），② 再发布。
+ * ② 失败时草稿已留（Q10），跳草稿箱让用户重试，不删除不回滚。
+ */
+async function handlePrimary() {
+  if (submitting.value || !validate()) return
+  submitting.value = true
+  let draftId = voteId.value
+  try {
+    draftId = await saveDraft()
+  } catch (e) {
+    submitting.value = false
+    return
+  }
+  try {
+    await publishVote(draftId)
+    releaseGuard()
+    uni.showToast({ title: '已发布', icon: 'success' })
+    setTimeout(() => uni.reLaunch({ url: '/pages/list/index' }), 500)
+  } catch (e) {
+    releaseGuard()
+    uni.showToast({ title: '发布失败，内容已存为草稿', icon: 'none' })
+    setTimeout(() => uni.reLaunch({ url: '/pages/drafts/index' }), 1200)
   } finally {
     submitting.value = false
   }
@@ -316,7 +407,8 @@ async function handleSubmit() {
 async function loadForEdit(id) {
   try {
     const vo = await getVoteDetail(id)
-    if (vo.status !== 0) {
+    if (vo.status !== VOTE_STATUS.DRAFT) {
+      // 此处基线尚未采集（dirty 恒为 false），不必解除离开守卫
       uni.showToast({ title: '仅草稿可编辑', icon: 'none' })
       setTimeout(() => uni.navigateBack(), 800)
       return
@@ -337,7 +429,11 @@ async function loadForEdit(id) {
       isRequired: q.isRequired === 0 ? 0 : 1,
       options: (q.options || []).map((o) => ({ _key: nextKey(), optionText: o.optionText || '' }))
     }))
+
+    // 回填完毕后采集基线：此后用户的任何改动才会被判定为"未保存的修改"
+    baseline.value = snapshot()
   } catch (e) {
+    // 回填失败：基线同样未采集，dirty 恒为 false，无需解除守卫
     setTimeout(() => uni.navigateBack(), 800)
   }
 }
@@ -350,6 +446,8 @@ onLoad((query) => {
   } else {
     uni.setNavigationBarTitle({ title: '创建投票' })
     questions.value.push(newQuestion())
+    // 新建模式：初始空表单即基线（预置的 1 道空题不算"修改"）
+    baseline.value = snapshot()
   }
 })
 </script>
@@ -446,12 +544,6 @@ onLoad((query) => {
   color: var(--text-placeholder);
 }
 
-.time-clear {
-  padding-left: 8rpx;
-  font-size: 24rpx;
-  color: var(--text-tertiary);
-}
-
 .q-head {
   display: flex;
   align-items: center;
@@ -543,6 +635,10 @@ onLoad((query) => {
 .footer {
   margin-top: 40rpx;
   padding: 0 24rpx;
+}
+
+.footer-second {
+  margin-top: 16rpx;
 }
 
 .footer-tip {
