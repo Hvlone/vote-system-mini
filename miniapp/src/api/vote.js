@@ -23,6 +23,10 @@ export const editVote = (id, data) =>
 export const publishVote = (id) =>
   request({ url: `/votes/${id}/publish`, method: 'POST' })
 
+/** 修改截止时间（仅创建者 + 仅发布中；新时间须晚于当前时间） */
+export const updateEndTime = (id, endTime) =>
+  request({ url: `/votes/${id}/end-time`, method: 'PUT', data: { endTime } })
+
 /** 停止（status 1 → 2） */
 export const stopVote = (id) => request({ url: `/votes/${id}/stop`, method: 'POST' })
 

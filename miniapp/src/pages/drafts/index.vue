@@ -72,7 +72,7 @@ function goDetail(item) {
 function handlePublish(item) {
   uni.showModal({
     title: '发布投票',
-    content: `确定发布「${item.title}」？发布后题目不可再修改。`,
+    content: `确定发布「${item.title}」？发布后题目不可修改，仅可调整截止时间。`,
     success: async (res) => {
       if (!res.confirm) return
       try {

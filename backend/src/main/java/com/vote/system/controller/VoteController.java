@@ -3,6 +3,7 @@ package com.vote.system.controller;
 import com.vote.system.common.Result;
 import com.vote.system.common.UserContext;
 import com.vote.system.dto.VoteCreateDTO;
+import com.vote.system.dto.VoteEndTimeDTO;
 import com.vote.system.dto.VoteVO;
 import com.vote.system.entity.Vote;
 import com.vote.system.service.VoteService;
@@ -72,6 +73,13 @@ public class VoteController {
     @PostMapping("/{id}/publish")
     public Result<Void> publish(@PathVariable Long id) {
         voteService.publish(id, UserContext.getUserId());
+        return Result.ok();
+    }
+
+    /** 发布后修改截止时间（仅创建者、仅发布中；新时间须晚于当前时间） */
+    @PutMapping("/{id}/end-time")
+    public Result<Void> updateEndTime(@PathVariable Long id, @Valid @RequestBody VoteEndTimeDTO dto) {
+        voteService.updateEndTime(id, dto, UserContext.getUserId());
         return Result.ok();
     }
 

@@ -35,13 +35,16 @@
           <button class="btn btn-primary footer-btn" @click="handlePublish">发布</button>
         </view>
 
-        <!-- 管理视角（发布中）：去投票 / 分享 / 停止 三行（「编辑」随 P1 的改截止时间一起加入第三行） -->
+        <!-- 管理视角（发布中）：第 1 行 去投票 / 第 2 行 分享 / 第 3 行 编辑 + 停止 并列 -->
         <block v-else-if="isManage && vote.status === VOTE_STATUS.PUBLISHED">
           <button class="btn btn-primary footer-row" @click="goAnswer">去投票</button>
           <!-- #ifdef MP-WEIXIN -->
           <button class="btn btn-plain footer-row" open-type="share">分享</button>
           <!-- #endif -->
-          <button class="btn btn-plain footer-row" @click="handleStop">停止</button>
+          <view class="footer-inline">
+            <button class="btn btn-plain footer-btn" @click="openEndTime">编辑</button>
+            <button class="btn btn-plain footer-btn" @click="handleStop">停止</button>
+          </view>
         </block>
 
         <!-- 公开视角：参与入口 + 分享（草稿对外 404，不给分享入口） -->
@@ -62,14 +65,29 @@
         </template>
       </view>
     </block>
+
+    <!-- 修改截止时间弹窗（#2）：仅发布中态第三行「编辑」唤出 -->
+    <DateTimePopup
+      :visible="showEndTime"
+      :value="endTimeValue"
+      @close="showEndTime = false"
+      @confirm="handleEndTimeConfirm"
+    />
   </view>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import { getVoteDetail, getVisibleVote, publishVote, stopVote } from '../../api/vote'
-import { formatDateTime } from '../../utils/datetime'
+import {
+  getVoteDetail,
+  getVisibleVote,
+  publishVote,
+  stopVote,
+  updateEndTime
+} from '../../api/vote'
+import { formatDateTime, toIso, parseDateTime } from '../../utils/datetime'
+import DateTimePopup from '../../components/DateTimePopup.vue'
 import {
   VOTE_STATE,
   VOTE_STATUS,
@@ -146,7 +164,7 @@ function goAnswer() {
 function handlePublish() {
   uni.showModal({
     title: '发布投票',
-    content: `确定发布「${vote.value.title}」？发布后题目不可再修改。`,
+    content: `确定发布「${vote.value.title}」？发布后题目不可修改，仅可调整截止时间。`,
     success: async (res) => {
       if (!res.confirm) return
       try {
@@ -175,6 +193,35 @@ function handleStop() {
       }
     }
   })
+}
+
+/** 改截止时间弹窗（#2）：由发布中态第三行「编辑」唤出 */
+const showEndTime = ref(false)
+
+function openEndTime() {
+  showEndTime.value = true
+}
+
+/** 弹窗初值：沿用当前截止时间（vote 为空时给空串，弹窗自行回落到今天 23:59） */
+const endTimeValue = computed(() => formatDateTime(vote.value && vote.value.endTime))
+
+/** 弹窗确认：转 ISO → 本地预校验（Q6）→ 提交 → 刷新 */
+async function handleEndTimeConfirm(text) {
+  const iso = toIso(text)
+  const picked = parseDateTime(iso)
+  // 必须晚于当前时间；后端同样校验，前端先拦一次，避免无谓往返
+  if (!picked || picked.getTime() <= Date.now()) {
+    uni.showToast({ title: '截止时间必须晚于当前时间', icon: 'none' })
+    return
+  }
+  showEndTime.value = false
+  try {
+    await updateEndTime(voteId.value, iso)
+    uni.showToast({ title: '已更新截止时间', icon: 'success' })
+    loadVote()
+  } catch (e) {
+    // 失败提示已由 request.js 统一弹出
+  }
 }
 
 // 朋友圈分享（#3 补救）：微信不允许改写朋友圈的落地页，只能带 query 标记，

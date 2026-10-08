@@ -3,6 +3,7 @@ package com.vote.system.mapper;
 import com.vote.system.entity.Vote;
 import org.apache.ibatis.annotations.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -25,6 +26,10 @@ public interface VoteMapper {
 
     @Update("UPDATE vote SET status = #{status} WHERE id = #{id}")
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
+
+    /** 仅改截止时间（发布后改截止时间专用，不动标题/说明/开始时间） */
+    @Update("UPDATE vote SET end_time = #{endTime} WHERE id = #{id}")
+    int updateEndTime(@Param("id") Long id, @Param("endTime") LocalDateTime endTime);
 
     @Delete("DELETE FROM vote WHERE id = #{id}")
     int deleteById(Long id);

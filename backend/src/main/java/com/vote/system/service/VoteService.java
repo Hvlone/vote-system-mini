@@ -2,6 +2,7 @@ package com.vote.system.service;
 
 import com.vote.system.common.BusinessException;
 import com.vote.system.dto.VoteCreateDTO;
+import com.vote.system.dto.VoteEndTimeDTO;
 import com.vote.system.dto.VoteVO;
 import com.vote.system.entity.*;
 import com.vote.system.mapper.*;
@@ -193,6 +194,24 @@ public class VoteService {
             throw BusinessException.badRequest("仅草稿状态的投票可以发布");
         }
         voteMapper.updateStatus(voteId, 1);
+    }
+
+    /**
+     * 修改截止时间（#2）：仅创建者、仅发布中（status=1）可改；新截止时间必须晚于当前时间（Q6）。
+     * 不改 status —— 状态机单向，到期与否由 expired 推导。
+     */
+    public void updateEndTime(Long voteId, VoteEndTimeDTO dto, Long userId) {
+        Vote vote = checkOwnership(voteId, userId);
+        if (vote.getStatus() != 1) {
+            throw BusinessException.badRequest("仅发布中的投票可以修改截止时间");
+        }
+        LocalDateTime newEnd = dto.getEndTime();
+        if (newEnd == null || !newEnd.isAfter(LocalDateTime.now())) {
+            throw BusinessException.badRequest("新截止时间必须晚于当前时间");
+        }
+        // 同时保证 开始时间 < 新截止时间（防止开始时间在未来的投票被改成非法区间）
+        validateTimeRange(vote.getStartTime(), newEnd);
+        voteMapper.updateEndTime(voteId, newEnd);
     }
 
     public void stop(Long voteId, Long userId) {
