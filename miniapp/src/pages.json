@@ -9,8 +9,14 @@
     {
       "path": "pages/list/index",
       "style": {
-        "navigationBarTitleText": "我创建的投票",
+        "navigationBarTitleText": "已发布的投票",
         "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/drafts/index",
+      "style": {
+        "navigationBarTitleText": "草稿箱"
       }
     },
     {

@@ -2,7 +2,7 @@
   <view class="list" :class="{ 'theme-dark': theme.dark }">
     <view class="header">
       <view class="header-left">
-        <text class="header-title">我创建的投票</text>
+        <text class="header-title">已发布的投票</text>
         <text class="header-sub">{{ nickname || '未设置昵称' }}</text>
       </view>
       <text class="header-action" @click="goMine">我的</text>
@@ -10,13 +10,14 @@
 
     <view class="create-row">
       <button class="btn btn-primary" @click="goCreate">+ 创建投票</button>
+      <button class="btn btn-plain drafts-btn" @click="goDrafts">草稿箱</button>
     </view>
 
     <view v-if="loading" class="tip">加载中...</view>
 
     <view v-else-if="!votes.length" class="card empty">
-      <text class="empty-title">还没有创建过投票</text>
-      <text class="empty-sub">参与他人活动需通过分享或扫码进入</text>
+      <text class="empty-title">还没有已发布的投票</text>
+      <text class="empty-sub">创建并发布后会显示在这里，草稿请到「草稿箱」查看</text>
     </view>
 
     <view v-else>
@@ -33,21 +34,9 @@
         </view>
 
         <view class="vote-actions">
+          <text v-if="item.status === VOTE_STATUS.PUBLISHED" class="act" @click.stop="handleStop(item)">停止</text>
           <text
-            v-if="voteState(item) === VOTE_STATE.DRAFT"
-            class="act act-primary"
-            @click.stop="goEdit(item)"
-            >编辑</text
-          >
-          <text
-            v-if="voteState(item) === VOTE_STATE.DRAFT"
-            class="act act-primary"
-            @click.stop="handlePublish(item)"
-            >发布</text
-          >
-          <text v-if="item.status === 1" class="act" @click.stop="handleStop(item)">停止</text>
-          <text
-            v-if="item.status !== 0"
+            v-if="item.status !== VOTE_STATUS.DRAFT"
             class="act act-primary"
             @click.stop="goStats(item)"
             >查看统计</text
@@ -62,9 +51,9 @@
 <script setup>
 import { ref } from 'vue'
 import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
-import { listMyVotes, publishVote, stopVote, deleteVote } from '../../api/vote'
+import { listMyVotes, stopVote, deleteVote } from '../../api/vote'
 import { formatDateTime } from '../../utils/datetime'
-import { VOTE_STATE, voteState, voteStateText, voteStateClass } from '../../utils/voteState'
+import { VOTE_STATUS, voteStateText, voteStateClass } from '../../utils/voteState'
 import { useTheme } from '../../utils/theme'
 
 const theme = useTheme()
@@ -72,12 +61,12 @@ const votes = ref([])
 const loading = ref(false)
 const nickname = ref('')
 
-/** 拉取"我创建的投票"（仅本人创建，按创建时间倒序） */
+/** 拉取"我创建的投票"并剔除草稿（草稿已拆分到草稿箱页） */
 async function loadVotes() {
   loading.value = true
   try {
     const data = await listMyVotes()
-    votes.value = data || []
+    votes.value = (data || []).filter((v) => v.status !== VOTE_STATUS.DRAFT)
   } catch (e) {
     votes.value = []
   } finally {
@@ -89,8 +78,9 @@ function goCreate() {
   uni.navigateTo({ url: '/pages/create/index' })
 }
 
-function goEdit(item) {
-  uni.navigateTo({ url: `/pages/create/index?id=${item.id}` })
+/** 进入草稿箱（草稿的编辑/发布/删除都在那里） */
+function goDrafts() {
+  uni.navigateTo({ url: '/pages/drafts/index' })
 }
 
 /** 管理视角详情：可读草稿，带编辑/发布/停止操作 */
@@ -106,23 +96,6 @@ function goStats(item) {
 /** 进入我的页（昵称/我的记录/退出登录都在那里） */
 function goMine() {
   uni.navigateTo({ url: '/pages/mine/index' })
-}
-
-function handlePublish(item) {
-  uni.showModal({
-    title: '发布投票',
-    content: `确定发布「${item.title}」？发布后不可再编辑。`,
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        await publishVote(item.id)
-        uni.showToast({ title: '已发布', icon: 'success' })
-        loadVotes()
-      } catch (e) {
-        // 失败提示已由 request.js 统一弹出
-      }
-    }
-  })
 }
 
 function handleStop(item) {
@@ -207,6 +180,10 @@ onPullDownRefresh(async () => {
 
 .create-row {
   padding: 24rpx 24rpx 4rpx;
+}
+
+.drafts-btn {
+  margin-top: 16rpx;
 }
 
 .tip {

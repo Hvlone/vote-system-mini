@@ -7,6 +7,13 @@
 
 import { parseDateTime } from './datetime'
 
+/** 后端 vote.status 原始取值（注意与下面的展示态 VOTE_STATE 区分：这是后端状态，不是前端推导结果） */
+export const VOTE_STATUS = {
+  DRAFT: 0,      // 草稿
+  PUBLISHED: 1,  // 发布中
+  STOPPED: 2     // 已结束
+}
+
 export const VOTE_STATE = {
   DRAFT: 'draft',
   NOT_STARTED: 'notStarted',
@@ -31,8 +38,8 @@ export const VOTE_STATE_TEXT = {
  */
 export function voteState(vote) {
   if (!vote) return VOTE_STATE.ONGOING
-  if (vote.status === 0) return VOTE_STATE.DRAFT
-  if (vote.status === 2) return VOTE_STATE.STOPPED
+  if (vote.status === VOTE_STATUS.DRAFT) return VOTE_STATE.DRAFT
+  if (vote.status === VOTE_STATUS.STOPPED) return VOTE_STATE.STOPPED
   if (vote.expired === true) return VOTE_STATE.EXPIRED
 
   const start = parseDateTime(vote.startTime)
@@ -55,7 +62,7 @@ export function voteStateClass(vote) {
  * 后端提交闸门①要求 status=1 且 now ∈ [start_time, end_time]
  */
 export function canSubmit(vote) {
-  if (!vote || vote.status !== 1) return false
+  if (!vote || vote.status !== VOTE_STATUS.PUBLISHED) return false
   const now = Date.now()
   const start = parseDateTime(vote.startTime)
   const end = parseDateTime(vote.endTime)
